@@ -349,6 +349,16 @@ h2 {
   text-align: center;
 }
 
+.chart-card__actions {
+  display: flex;
+  justify-content: center;
+}
+
+.chart-card__retry {
+  min-height: 40px;
+  padding: 0.55rem 0.95rem;
+}
+
 .chart-card__skeleton {
   width: min(100%, 440px);
   height: 176px;
@@ -507,6 +517,41 @@ h2 {
   background: transparent;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.pwa-toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: grid;
+  gap: 0.65rem;
+  width: min(calc(100vw - 2rem), 420px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.pwa-toast {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 20px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-strong) 92%, var(--bg) 8%);
+  pointer-events: auto;
+}
+
+.pwa-toast--action {
+  justify-content: space-between;
+}
+
+.pwa-toast__action {
+  min-height: 36px;
+  padding: 0.1rem 0.35rem;
+  color: var(--primary);
+  font-weight: 700;
 }
 
 .reset-modal {

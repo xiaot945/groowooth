@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>groowooth</title>
+  <rect width="64" height="64" rx="14" fill="#2E7D69" />
+  <path
+    d="M14 44 L25 33 L36 29 L50 18"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="6"
+  />
+  <circle cx="50" cy="18" r="4" fill="#FFFFFF" />
+</svg>

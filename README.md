@@ -139,7 +139,7 @@ const text = await interpret({
 
 **v1.0（下一站）**
 - [ ] 多孩子 UI、标准切换 UI、JSON 导入导出、设置抽屉
-- [ ] PWA 离线可用
+- [x] PWA 离线可用
 - [ ] Cloudflare Pages 部署 + 自定义域名
 - [ ] Bundle size 优化（标准数据按需懒加载，目前 932 kB / 243 kB gzip）
 - [ ] CI/CD（GitHub Actions）

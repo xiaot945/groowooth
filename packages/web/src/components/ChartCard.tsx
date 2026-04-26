@@ -68,6 +68,14 @@ function useChartTheme(): 'light' | 'dark' {
   return theme
 }
 
+function toChartErrorMessage(error: unknown): string {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return '离线状态下首次打开无法加载标准曲线，请联网后重试'
+  }
+
+  return error instanceof Error ? error.message : '图表加载失败，请稍后重试。'
+}
+
 export function ChartCard({ indicator, measurements, sex, standard }: ChartCardProps) {
   const theme = useChartTheme()
   const sortedMeasurements = [...measurements].sort((left, right) => left.x - right.x)
@@ -82,6 +90,7 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
   const chartRequestKey = JSON.stringify(chartRequest)
   const [chartMarkup, setChartMarkup] = useState<string | null>(null)
   const [chartError, setChartError] = useState<string | null>(null)
+  const [retryToken, setRetryToken] = useState(0)
 
   useEffect(() => {
     if (chartRequest.measurements.length === 0) {
@@ -94,23 +103,27 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
     setChartMarkup(null)
     setChartError(null)
 
-    void import('@groowooth/core')
-      .then(({ renderChart }) => renderChart(chartRequest))
-      .then((svg) => {
+    async function loadChart() {
+      try {
+        const { renderChart } = await import('@groowooth/core')
+        const svg = await renderChart(chartRequest)
+
         if (!isCancelled) {
           setChartMarkup(svg)
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!isCancelled) {
-          setChartError(error instanceof Error ? error.message : '图表加载失败，请稍后重试。')
+          setChartError(toChartErrorMessage(error))
         }
-      })
+      }
+    }
+
+    void loadChart()
 
     return () => {
       isCancelled = true
     }
-  }, [chartRequestKey])
+  }, [chartRequestKey, retryToken])
 
   if (sortedMeasurements.length === 0) {
     return (
@@ -151,6 +164,17 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
           >
             <div className="chart-card__skeleton" aria-hidden="true" />
             <p className="muted-text">{chartError ?? '正在加载…'}</p>
+            {chartError ? (
+              <div className="chart-card__actions">
+                <button
+                  type="button"
+                  className="ghost-button chart-card__retry"
+                  onClick={() => setRetryToken((current) => current + 1)}
+                >
+                  重试
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
