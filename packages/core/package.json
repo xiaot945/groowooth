@@ -16,7 +16,11 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "zod": "workspace:*"
+  },
   "devDependencies": {
-    "tsup": "^8.5.0"
+    "tsup": "workspace:*",
+    "typescript": "workspace:*"
   }
 }

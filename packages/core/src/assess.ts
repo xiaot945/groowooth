@@ -1,27 +1,52 @@
-import { NotImplementedError } from './errors'
+import { z } from 'zod'
+
+import { OutOfPlausibleRangeError, OutOfRangeError } from './errors'
 import { valueToZ, zToPercentile } from './lms'
-import { DISCLAIMER, type Indicator, type LmsRow, type Sex, type Standard, type ZRange } from './types'
+import { valueToZSdTable } from './sd-table'
+import {
+  findNearestRow,
+  getIndicatorData,
+  getRowsForSex,
+  getStandardDataset,
+  isLmsIndicatorData,
+  isSdIndicatorData,
+  isWithinIndicatorRange,
+  toSourceX
+} from './standard-data'
+import { DISCLAIMER, type Indicator, type Sex, type Standard, type ZRange } from './types'
+
+const assessInputSchema = z.object({
+  ageMonths: z.number().finite().nonnegative(),
+  sex: z.enum(['male', 'female']),
+  heightCm: z.number().finite().positive().optional(),
+  weightKg: z.number().finite().positive().optional(),
+  headCircumferenceCm: z.number().finite().positive().optional(),
+  standard: z.enum(['who-2006', 'who-2007', 'nhc-2022']).default('nhc-2022'),
+  gestationalWeeks: z.number().finite().positive().optional()
+})
 
 export interface AssessInput {
-  standard: Standard
-  indicator: Indicator
-  sex: Sex
   ageMonths: number
-  value: number
+  sex: Sex
+  heightCm?: number
+  weightKg?: number
+  headCircumferenceCm?: number
+  standard?: Standard
+  gestationalWeeks?: number
 }
 
-export interface AssessResult {
+export interface IndicatorResult {
+  indicator: Indicator
   zScore: number
   percentile: number
   range: ZRange
-  disclaimer: string
 }
 
-const WHO_2006_HEIGHT_FOR_AGE_MALE_12_MONTHS: LmsRow = {
-  x: 365,
-  L: 1,
-  M: 75.7391,
-  S: 0.03137
+export interface AssessResult {
+  standard: Standard
+  standardVersion: string
+  assessments: IndicatorResult[]
+  disclaimer: string
 }
 
 function getZRange(zScore: number): ZRange {
@@ -38,27 +63,159 @@ function getZRange(zScore: number): ZRange {
   return 'within_2_sd'
 }
 
-export function assess(input: AssessInput): AssessResult {
-  const { standard, indicator, sex, ageMonths, value } = input
+function assertPlausibleMeasurement(name: 'heightCm' | 'weightKg' | 'headCircumferenceCm', ageMonths: number, value: number): void {
+  const limits =
+    name === 'heightCm'
+      ? ageMonths <= 81
+        ? { min: 35, max: 130 }
+        : { min: 60, max: 220 }
+      : name === 'weightKg'
+        ? ageMonths <= 81
+          ? { min: 0.5, max: 40 }
+          : { min: 5, max: 200 }
+        : { min: 20, max: 60 }
 
-  const isSupportedFixture =
-    standard === 'who-2006' &&
-    indicator === 'height-for-age' &&
-    sex === 'male' &&
-    ageMonths === 12
+  if (value < limits.min || value > limits.max) {
+    throw new OutOfPlausibleRangeError(`${name} is outside the plausible range for age ${ageMonths} months.`)
+  }
+}
 
-  if (!isSupportedFixture) {
-    throw new NotImplementedError(
-      'Only who-2006 height-for-age for male at 12 months is supported in this session.'
+function assessIndicator(args: {
+  standard: Standard
+  indicator: Indicator
+  sex: Sex
+  ageMonths: number
+  measurement: number
+  sizeCm?: number
+}): IndicatorResult {
+  const indicatorData = getIndicatorData(args.standard, args.indicator)
+
+  if (!indicatorData) {
+    throw new OutOfRangeError(`Indicator ${args.indicator} is not available for ${args.standard}.`)
+  }
+
+  const rows = getRowsForSex(indicatorData, args.sex)
+  const sourceX = toSourceX(indicatorData.xUnit, indicatorData.xType, args.ageMonths, args.sizeCm)
+
+  if (!isWithinIndicatorRange(rows, sourceX)) {
+    throw new OutOfRangeError(
+      `${args.indicator} is outside the supported ${indicatorData.xType} range for ${args.standard}.`
     )
   }
 
-  const zScore = valueToZ(value, WHO_2006_HEIGHT_FOR_AGE_MALE_12_MONTHS)
+  const row = findNearestRow(rows, sourceX)
+  const zScore = isLmsIndicatorData(indicatorData)
+    ? valueToZ(args.measurement, row)
+    : isSdIndicatorData(indicatorData)
+      ? valueToZSdTable(args.measurement, row)
+      : (() => {
+          throw new RangeError('Unsupported indicator model')
+        })()
 
   return {
+    indicator: args.indicator,
     zScore,
     percentile: zToPercentile(zScore),
-    range: getZRange(zScore),
+    range: getZRange(zScore)
+  }
+}
+
+function pickWeightBySizeIndicator(standard: Standard, ageMonths: number, heightCm: number): Indicator | null {
+  const preferred = ageMonths < 24 ? ['weight-for-length', 'weight-for-height'] : ['weight-for-height', 'weight-for-length']
+
+  for (const indicator of preferred) {
+    const indicatorData = getIndicatorData(standard, indicator)
+    if (!indicatorData) {
+      continue
+    }
+
+    const rows = indicatorData.male
+    if (isWithinIndicatorRange(rows, heightCm)) {
+      return indicator
+    }
+  }
+
+  return null
+}
+
+/**
+ * v1 selects the nearest source row for each assessment and does not interpolate between rows.
+ */
+export function assess(input: AssessInput): AssessResult {
+  const parsed = assessInputSchema.parse(input)
+  const standard = parsed.standard
+  const assessments: IndicatorResult[] = []
+
+  if (parsed.heightCm !== undefined) {
+    assertPlausibleMeasurement('heightCm', parsed.ageMonths, parsed.heightCm)
+    assessments.push(
+      assessIndicator({
+        standard,
+        indicator: 'height-for-age',
+        sex: parsed.sex,
+        ageMonths: parsed.ageMonths,
+        measurement: parsed.heightCm
+      })
+    )
+  }
+
+  if (parsed.weightKg !== undefined) {
+    assertPlausibleMeasurement('weightKg', parsed.ageMonths, parsed.weightKg)
+    assessments.push(
+      assessIndicator({
+        standard,
+        indicator: 'weight-for-age',
+        sex: parsed.sex,
+        ageMonths: parsed.ageMonths,
+        measurement: parsed.weightKg
+      })
+    )
+
+    if (parsed.heightCm !== undefined) {
+      const bmi = parsed.weightKg / Math.pow(parsed.heightCm / 100, 2)
+      assessments.push(
+        assessIndicator({
+          standard,
+          indicator: 'bmi-for-age',
+          sex: parsed.sex,
+          ageMonths: parsed.ageMonths,
+          measurement: bmi
+        })
+      )
+
+      const weightBySizeIndicator = pickWeightBySizeIndicator(standard, parsed.ageMonths, parsed.heightCm)
+      if (weightBySizeIndicator) {
+        assessments.push(
+          assessIndicator({
+            standard,
+            indicator: weightBySizeIndicator,
+            sex: parsed.sex,
+            ageMonths: parsed.ageMonths,
+            measurement: parsed.weightKg,
+            sizeCm: parsed.heightCm
+          })
+        )
+      }
+    }
+  }
+
+  if (parsed.headCircumferenceCm !== undefined) {
+    assertPlausibleMeasurement('headCircumferenceCm', parsed.ageMonths, parsed.headCircumferenceCm)
+    assessments.push(
+      assessIndicator({
+        standard,
+        indicator: 'head-for-age',
+        sex: parsed.sex,
+        ageMonths: parsed.ageMonths,
+        measurement: parsed.headCircumferenceCm
+      })
+    )
+  }
+
+  return {
+    standard,
+    standardVersion: getStandardDataset(standard).version,
+    assessments,
     disclaimer: DISCLAIMER
   }
 }

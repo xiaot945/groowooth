@@ -1,18 +1,21 @@
 {
   "name": "groowooth-monorepo",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "pnpm --filter @groowooth/core build --watch",
     "build": "pnpm -r run build",
+    "build:standards": "pnpm exec tsx scripts/build-standards.ts",
     "test": "vitest run",
     "lint": "pnpm -r run lint",
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "@types/node": "workspace:*",
+    "prettier": "workspace:*",
+    "tsx": "workspace:*",
+    "typescript": "workspace:*",
+    "vitest": "workspace:*"
   }
 }
