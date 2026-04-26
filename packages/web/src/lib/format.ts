@@ -29,6 +29,26 @@ export function formatAgeLabel(ageMonths: number): string {
   return `${years} 岁 ${months} 月`
 }
 
+export function formatMeasurementAgeLabel(ageMonths: number): string | null {
+  if (!Number.isFinite(ageMonths) || ageMonths < 0) {
+    return null
+  }
+
+  const wholeMonths = Math.floor(ageMonths)
+  const halfMonths = Math.round((ageMonths - wholeMonths) * 2)
+  const baseLabel = formatAgeLabel(wholeMonths)
+
+  if (halfMonths <= 0) {
+    if (wholeMonths < 12) {
+      return `${wholeMonths} 月龄`
+    }
+
+    return baseLabel
+  }
+
+  return `${baseLabel} 2 周龄`
+}
+
 export function formatDateLabel(date: string): string {
   const parsed = parseIsoDate(date)
 

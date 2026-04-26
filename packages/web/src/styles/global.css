@@ -304,6 +304,138 @@ h2 {
   height: auto;
 }
 
+.measurement-list {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+}
+
+.measurement-list__header,
+.measurement-list__meta,
+.measurement-list__confirm {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.measurement-list__header {
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.measurement-list__meta {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.measurement-list__scroll {
+  max-height: min(64rem, calc(100vh - 12rem));
+  overflow-y: auto;
+  margin: 0 -0.2rem;
+  padding: 0 0.2rem;
+}
+
+.measurement-list__items {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.measurement-list__item {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.measurement-list__item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.measurement-list__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.measurement-list__content {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.measurement-list__date {
+  font-weight: 700;
+}
+
+.measurement-list__age,
+.measurement-list__empty {
+  color: var(--muted);
+}
+
+.measurement-list__values {
+  margin: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.measurement-list__actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.measurement-list__delete {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.measurement-list__confirm {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.measurement-list__confirm-text {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.measurement-list__confirm-button {
+  min-height: 40px;
+  padding: 0.55rem 0.85rem;
+}
+
+.reset-button-wrap {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 1rem;
+}
+
+.text-button {
+  min-height: 44px;
+  padding: 0.2rem 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.reset-modal {
+  display: grid;
+  gap: 0.25rem;
+}
+
 .fab-button {
   position: fixed;
   right: 1rem;
@@ -358,5 +490,16 @@ h2 {
 
   .fab-button {
     right: max(1rem, calc((100vw - 720px) / 2));
+  }
+}
+
+@media (max-width: 420px) {
+  .measurement-list__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .measurement-list__actions,
+  .measurement-list__confirm {
+    justify-content: flex-start;
   }
 }

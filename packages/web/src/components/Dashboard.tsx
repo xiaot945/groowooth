@@ -1,11 +1,14 @@
 import { assess, interpret, DISCLAIMER, type Indicator } from '@groowooth/core'
 import { useState } from 'react'
 
+import { deleteMeasurement, resetAllData } from '../lib/storage'
 import type { ChildRecord, MeasurementRecord } from '../lib/storage'
 import { formatDateLabel } from '../lib/format'
 import { ChartCard } from './ChartCard'
 import { ChildHeader } from './ChildHeader'
+import { MeasurementList } from './MeasurementList'
 import { MeasurementForm } from './MeasurementForm'
+import { ResetButton } from './ResetButton'
 
 interface DashboardProps {
   child: ChildRecord
@@ -130,6 +133,16 @@ export function Dashboard({ child, measurements, onMeasurementsChanged }: Dashbo
     setIsFormOpen(false)
   }
 
+  async function handleDeleteMeasurement(date: string) {
+    await deleteMeasurement(child.id, date)
+    await onMeasurementsChanged()
+  }
+
+  async function handleResetAllData() {
+    await resetAllData()
+    window.location.reload()
+  }
+
   return (
     <main className="app-shell">
       <div className="dashboard">
@@ -165,6 +178,14 @@ export function Dashboard({ child, measurements, onMeasurementsChanged }: Dashbo
             />
           ))}
         </section>
+
+        <MeasurementList
+          measurements={measurements}
+          childBirthDate={child.dateOfBirth}
+          onDelete={handleDeleteMeasurement}
+        />
+
+        <ResetButton onConfirm={handleResetAllData} />
 
         <button
           className="fab-button"

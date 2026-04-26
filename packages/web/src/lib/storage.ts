@@ -174,3 +174,25 @@ export async function deleteMeasurement(childId: string, date: string): Promise<
   }
   await tx.done
 }
+
+export async function resetAllData(): Promise<void> {
+  const pendingDb = dbPromise
+  dbPromise = null
+
+  if (pendingDb) {
+    try {
+      const db = await pendingDb
+      db.close()
+    } catch {
+      // Ignore failed opens and continue with best-effort deletion.
+    }
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME)
+
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error ?? new Error('Failed to delete local database.'))
+    request.onblocked = () => reject(new Error('请先关闭其他打开 groowooth 的标签页后再试。'))
+  })
+}
