@@ -5,6 +5,7 @@ import { OnboardingForm } from './components/OnboardingForm'
 import {
   getActiveChild,
   listMeasurements,
+  subscribeStorageHealth,
   type ChildRecord,
   type MeasurementRecord
 } from './lib/storage'
@@ -14,20 +15,22 @@ export default function App() {
   const [measurements, setMeasurements] = useState<MeasurementRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [storageHealth, setStorageHealth] = useState<string | null>(null)
 
   async function refreshActiveChild() {
     setError(null)
 
     try {
       const activeChild = await getActiveChild()
-      setChild(activeChild)
 
       if (!activeChild) {
+        setChild(null)
         setMeasurements([])
         return
       }
 
       const nextMeasurements = await listMeasurements(activeChild.id)
+      setChild(activeChild)
       setMeasurements(nextMeasurements)
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : '加载失败，请刷新后重试。'
@@ -41,34 +44,46 @@ export default function App() {
     void refreshActiveChild()
   }, [])
 
+  useEffect(() => subscribeStorageHealth(setStorageHealth), [])
+
+  const statusMessage = storageHealth ?? error
+
   if (isLoading) {
     return (
-      <main className="app-shell">
-        <section className="surface-card empty-card">
-          <p className="eyebrow">groowooth</p>
-          <h1>正在读取本地成长记录…</h1>
-        </section>
-      </main>
+      <>
+        {statusMessage ? (
+          <div className="global-status" role="alert">
+            {statusMessage}
+          </div>
+        ) : null}
+
+        <main className="app-shell">
+          <section className="surface-card empty-card">
+            <p className="eyebrow">groowooth</p>
+            <h1>正在读取本地成长记录…</h1>
+          </section>
+        </main>
+      </>
     )
   }
 
   return (
     <>
-      {error ? (
+      {statusMessage ? (
         <div className="global-status" role="alert">
-          {error}
+          {statusMessage}
         </div>
       ) : null}
 
       {child ? (
-        <Dashboard child={child} measurements={measurements} onMeasurementsChanged={refreshActiveChild} />
-      ) : (
-        <OnboardingForm
-          onCreated={(createdChild) => {
-            setChild(createdChild)
-            setMeasurements([])
-          }}
+        <Dashboard
+          activeChildId={child.id}
+          child={child}
+          measurements={measurements}
+          onMeasurementsChanged={refreshActiveChild}
         />
+      ) : (
+        <OnboardingForm onCreated={refreshActiveChild} />
       )}
     </>
   )

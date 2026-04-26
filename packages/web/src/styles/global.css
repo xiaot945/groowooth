@@ -258,9 +258,43 @@ h2 {
   gap: 0.75rem;
 }
 
+.child-header__switcher {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .child-header__identity {
   display: grid;
   gap: 0.4rem;
+}
+
+.child-header__title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  padding-bottom: 0.1rem;
+  border-bottom: 1px solid transparent;
+  transition:
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.child-header__switcher:hover .child-header__title-row,
+.child-header__switcher:focus-visible .child-header__title-row {
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent 70%);
+}
+
+.child-header__chevron {
+  color: var(--muted);
+  font-size: 0.95rem;
+  transform: translateY(0.08rem);
 }
 
 .banner-pill {
@@ -501,9 +535,116 @@ h2 {
   gap: 0.75rem;
 }
 
+.add-child-modal,
+.child-switcher,
+.reset-modal {
+  display: grid;
+  gap: 1rem;
+}
+
 .action-row {
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.child-switcher__header {
+  align-items: flex-start;
+}
+
+.child-switcher__body {
+  display: grid;
+  gap: 1rem;
+}
+
+.child-switcher__list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.child-switcher__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.child-switcher__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-strong);
+  color: inherit;
+  text-align: left;
+  transition:
+    border-color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.child-switcher__row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border) 70%);
+}
+
+.child-switcher__row:disabled,
+.child-switcher__delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.child-switcher__row:disabled:hover,
+.child-switcher__delete:disabled:hover {
+  transform: none;
+}
+
+.child-switcher__row-main,
+.child-switcher__row-side {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.child-switcher__row-side {
+  justify-items: end;
+  flex-shrink: 0;
+}
+
+.child-switcher__name {
+  font-weight: 700;
+}
+
+.child-switcher__meta,
+.child-switcher__current {
+  color: var(--muted);
+}
+
+.child-switcher__check {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.child-switcher__delete {
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.child-switcher__add {
+  justify-self: stretch;
 }
 
 @media (min-width: 640px) {

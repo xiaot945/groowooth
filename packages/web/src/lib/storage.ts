@@ -5,7 +5,9 @@ import type { Sex } from '@groowooth/core'
 import { ageInMonths } from './age'
 
 const DB_NAME = 'groowooth'
-const DB_VERSION = 1
+const DB_VERSION = 2
+const ACTIVE_CHILD_META_KEY = 'activeChildId'
+const STORAGE_BLOCKED_MESSAGE = '请关闭其他标签页或刷新页面。'
 
 export interface ChildRecord {
   id: string
@@ -27,10 +29,19 @@ export interface MeasurementRecord {
   note?: string
 }
 
+interface MetaRecord {
+  key: string
+  value: string
+}
+
 interface GroowoothDb extends DBSchema {
   children: {
     key: string
     value: ChildRecord
+  }
+  meta: {
+    key: string
+    value: MetaRecord
   }
   measurements: {
     key: [string, string]
@@ -42,6 +53,19 @@ interface GroowoothDb extends DBSchema {
 }
 
 let dbPromise: Promise<IDBPDatabase<GroowoothDb>> | null = null
+let storageHealthMessage: string | null = null
+
+type StorageHealthListener = (message: string | null) => void
+
+const storageHealthListeners = new Set<StorageHealthListener>()
+
+function publishStorageHealth(message: string | null): void {
+  storageHealthMessage = message
+
+  for (const listener of storageHealthListeners) {
+    listener(message)
+  }
+}
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -49,10 +73,15 @@ function nowIso(): string {
 
 function getDb(): Promise<IDBPDatabase<GroowoothDb>> {
   if (!dbPromise) {
+    publishStorageHealth(null)
     dbPromise = openDB<GroowoothDb>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      async upgrade(db, oldVersion, _newVersion, transaction) {
         if (!db.objectStoreNames.contains('children')) {
           db.createObjectStore('children', { keyPath: 'id' })
+        }
+
+        if (!db.objectStoreNames.contains('meta')) {
+          db.createObjectStore('meta', { keyPath: 'key' })
         }
 
         if (!db.objectStoreNames.contains('measurements')) {
@@ -61,11 +90,48 @@ function getDb(): Promise<IDBPDatabase<GroowoothDb>> {
           })
           measurements.createIndex('childId', 'childId')
         }
+
+        if (oldVersion < 2) {
+          const children = sortChildren(await transaction.objectStore('children').getAll())
+          const activeChild = children[0]
+
+          if (activeChild) {
+            await transaction.objectStore('meta').put({
+              key: ACTIVE_CHILD_META_KEY,
+              value: activeChild.id
+            })
+          }
+        }
+      },
+      blocked() {
+        publishStorageHealth(STORAGE_BLOCKED_MESSAGE)
       }
     })
+      .then((db) => {
+        publishStorageHealth(null)
+        db.addEventListener('versionchange', () => {
+          db.close()
+          dbPromise = null
+        })
+
+        return db
+      })
+      .catch((error) => {
+        dbPromise = null
+        throw error
+      })
   }
 
   return dbPromise
+}
+
+export function subscribeStorageHealth(listener: StorageHealthListener): () => void {
+  storageHealthListeners.add(listener)
+  listener(storageHealthMessage)
+
+  return () => {
+    storageHealthListeners.delete(listener)
+  }
 }
 
 function sortChildren(children: ChildRecord[]): ChildRecord[] {
@@ -94,8 +160,30 @@ function assertMeasurementPayload(record: Partial<MeasurementRecord>): void {
 }
 
 export async function getActiveChild(): Promise<ChildRecord | null> {
-  const children = await listChildren()
-  return children[0] ?? null
+  const db = await getDb()
+  const metaRecord = await db.get('meta', ACTIVE_CHILD_META_KEY)
+
+  if (metaRecord) {
+    const activeChild = await db.get('children', metaRecord.value)
+
+    if (activeChild) {
+      return activeChild
+    }
+  }
+
+  const children = sortChildren(await db.getAll('children'))
+  const fallbackChild = children[0] ?? null
+
+  if (fallbackChild) {
+    await db.put('meta', {
+      key: ACTIVE_CHILD_META_KEY,
+      value: fallbackChild.id
+    })
+  } else {
+    await db.delete('meta', ACTIVE_CHILD_META_KEY)
+  }
+
+  return fallbackChild
 }
 
 export async function listChildren(): Promise<ChildRecord[]> {
@@ -118,6 +206,40 @@ export async function createChild(
   await db.put('children', child)
 
   return child
+}
+
+export async function setActiveChild(childId: string): Promise<void> {
+  const db = await getDb()
+  const child = await db.get('children', childId)
+
+  if (!child) {
+    throw new RangeError('Child not found.')
+  }
+
+  await db.put('meta', {
+    key: ACTIVE_CHILD_META_KEY,
+    value: childId
+  })
+}
+
+export async function deleteChild(childId: string): Promise<void> {
+  const db = await getDb()
+  const tx = db.transaction(['children', 'meta', 'measurements'], 'readwrite')
+  const childStore = tx.objectStore('children')
+  const metaStore = tx.objectStore('meta')
+  const measurementsStore = tx.objectStore('measurements')
+  const activeChildMeta = await metaStore.get(ACTIVE_CHILD_META_KEY)
+  const measurementKeys = await measurementsStore.index('childId').getAllKeys(childId)
+
+  await childStore.delete(childId)
+
+  await Promise.all(measurementKeys.map((key) => measurementsStore.delete(key)))
+
+  if (activeChildMeta?.value === childId) {
+    await metaStore.delete(ACTIVE_CHILD_META_KEY)
+  }
+
+  await tx.done
 }
 
 export async function listMeasurements(childId: string): Promise<MeasurementRecord[]> {

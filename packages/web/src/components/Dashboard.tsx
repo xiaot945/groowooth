@@ -6,11 +6,13 @@ import type { ChildRecord, MeasurementRecord } from '../lib/storage'
 import { formatDateLabel } from '../lib/format'
 import { ChartCard } from './ChartCard'
 import { ChildHeader } from './ChildHeader'
+import { ChildSwitcher } from './ChildSwitcher'
 import { MeasurementList } from './MeasurementList'
 import { MeasurementForm } from './MeasurementForm'
 import { ResetButton } from './ResetButton'
 
 interface DashboardProps {
+  activeChildId: string
   child: ChildRecord
   measurements: MeasurementRecord[]
   onMeasurementsChanged: () => Promise<void>
@@ -132,8 +134,9 @@ async function buildLatestSummary(child: ChildRecord, measurements: MeasurementR
   }
 }
 
-export function Dashboard({ child, measurements, onMeasurementsChanged }: DashboardProps) {
+export function Dashboard({ activeChildId, child, measurements, onMeasurementsChanged }: DashboardProps) {
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isChildSwitcherOpen, setIsChildSwitcherOpen] = useState(false)
   const [latestSummary, setLatestSummary] = useState<LatestSummary | null>(null)
   const [isSummaryLoading, setIsSummaryLoading] = useState(false)
 
@@ -165,7 +168,12 @@ export function Dashboard({ child, measurements, onMeasurementsChanged }: Dashbo
     return () => {
       isCancelled = true
     }
-  }, [child, measurements])
+  }, [activeChildId, child, measurements])
+
+  useEffect(() => {
+    setIsFormOpen(false)
+    setIsChildSwitcherOpen(false)
+  }, [activeChildId])
 
   const chartCards = SUMMARY_INDICATORS.map((indicator) => ({
     indicator,
@@ -193,7 +201,7 @@ export function Dashboard({ child, measurements, onMeasurementsChanged }: Dashbo
   return (
     <main className="app-shell">
       <div className="dashboard">
-        <ChildHeader child={child} />
+        <ChildHeader child={child} onOpenSwitcher={() => setIsChildSwitcherOpen(true)} />
 
         {isSummaryLoading ? (
           <section className="surface-card insight-card" aria-live="polite" aria-busy="true">
@@ -251,6 +259,14 @@ export function Dashboard({ child, measurements, onMeasurementsChanged }: Dashbo
 
         {isFormOpen ? (
           <MeasurementForm child={child} onCancel={() => setIsFormOpen(false)} onSaved={handleSaved} />
+        ) : null}
+
+        {isChildSwitcherOpen ? (
+          <ChildSwitcher
+            activeChildId={activeChildId}
+            onClose={() => setIsChildSwitcherOpen(false)}
+            onChildChanged={onMeasurementsChanged}
+          />
         ) : null}
       </div>
     </main>
