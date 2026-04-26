@@ -1,8 +1,25 @@
 # NHC + WHO 数据源调研
 
 **Date**: 2026-04-26
-**Status**: COMPLETE
+**Status**: ✅ NHC extraction complete (2026-04-26)
 **Outcome**: 全部数据源就位；NHC 计算路径与 WHO 不同（见下）
+
+## Appendix B Extraction Summary
+
+| filename | row count | x range |
+| --- | ---: | --- |
+| `weight-for-age-male.csv` | 44 | 0..81 |
+| `weight-for-age-female.csv` | 44 | 0..81 |
+| `height-for-age-male.csv` | 44 | 0..81 |
+| `height-for-age-female.csv` | 44 | 0..81 |
+| `weight-for-length-male.csv` | 56 | 45..100 |
+| `weight-for-length-female.csv` | 56 | 45..100 |
+| `weight-for-height-male.csv` | 56 | 75..130 |
+| `weight-for-height-female.csv` | 56 | 75..130 |
+| `bmi-for-age-male.csv` | 44 | 0..81 |
+| `bmi-for-age-female.csv` | 44 | 0..81 |
+| `head-for-age-male.csv` | 29 | 0..36 |
+| `head-for-age-female.csv` | 29 | 0..36 |
 
 ## 数据源清单
 
