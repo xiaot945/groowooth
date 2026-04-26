@@ -1,6 +1,6 @@
 import type { StandardDataset } from '../types'
 
-export const NHC_2022 = {
+export const NHC_2022: StandardDataset = {
   "source": "NHC WS/T 423-2022, 7岁以下儿童生长标准",
   "version": "2022",
   "url": "https://www.nhc.gov.cn/",

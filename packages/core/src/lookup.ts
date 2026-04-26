@@ -59,31 +59,47 @@ export function lookup(input: LookupInput): CurveData {
     throw new OutOfRangeError(`Indicator ${input.indicator} is not available for ${input.standard}.`)
   }
 
-  const rows = getRowsForSex(indicatorData, input.sex)
   const requestedPercentiles = (input.percentiles ?? [...DEFAULT_LOOKUP_PERCENTILES]).map(clampPercentile)
   const curves = Object.fromEntries(requestedPercentiles.map((percentile) => [toCurveKey(percentile), [] as LookupPoint[]]))
 
-  for (const row of rows) {
-    const displayX = toDisplayX(indicatorData.xUnit, indicatorData.xType, row.x)
+  if (isLmsIndicatorData(indicatorData)) {
+    const rows = getRowsForSex(indicatorData, input.sex)
 
-    if (input.xRange && (displayX < input.xRange[0] || displayX > input.xRange[1])) {
-      continue
-    }
+    for (const row of rows) {
+      const displayX = toDisplayX(indicatorData.xUnit, indicatorData.xType, row.x)
 
-    for (const percentile of requestedPercentiles) {
-      const key = toCurveKey(percentile)
-      if (isLmsIndicatorData(indicatorData)) {
+      if (input.xRange && (displayX < input.xRange[0] || displayX > input.xRange[1])) {
+        continue
+      }
+
+      for (const percentile of requestedPercentiles) {
+        const key = toCurveKey(percentile)
         curves[key].push({
           x: displayX,
           value: zToValue(percentileToZ(percentile / 100), row)
         })
-      } else if (isSdIndicatorData(indicatorData)) {
+      }
+    }
+  } else if (isSdIndicatorData(indicatorData)) {
+    const rows = getRowsForSex(indicatorData, input.sex)
+
+    for (const row of rows) {
+      const displayX = toDisplayX(indicatorData.xUnit, indicatorData.xType, row.x)
+
+      if (input.xRange && (displayX < input.xRange[0] || displayX > input.xRange[1])) {
+        continue
+      }
+
+      for (const percentile of requestedPercentiles) {
+        const key = toCurveKey(percentile)
         curves[key].push({
           x: displayX,
           value: zToValueSdTable(snapPercentileToSdZ(percentile), row)
         })
       }
     }
+  } else {
+    throw new RangeError('Unsupported indicator model')
   }
 
   return {

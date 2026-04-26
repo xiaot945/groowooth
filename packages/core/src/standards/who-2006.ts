@@ -1,6 +1,6 @@
 import type { StandardDataset } from '../types'
 
-export const WHO_2006 = {
+export const WHO_2006: StandardDataset = {
   "source": "WHO Child Growth Standards, 2006",
   "version": "2006",
   "url": "https://www.who.int/tools/child-growth-standards",

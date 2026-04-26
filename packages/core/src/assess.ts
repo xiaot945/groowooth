@@ -94,23 +94,30 @@ function assessIndicator(args: {
     throw new OutOfRangeError(`Indicator ${args.indicator} is not available for ${args.standard}.`)
   }
 
-  const rows = getRowsForSex(indicatorData, args.sex)
   const sourceX = toSourceX(indicatorData.xUnit, indicatorData.xType, args.ageMonths, args.sizeCm)
+  let zScore: number
 
-  if (!isWithinIndicatorRange(rows, sourceX)) {
-    throw new OutOfRangeError(
-      `${args.indicator} is outside the supported ${indicatorData.xType} range for ${args.standard}.`
-    )
+  if (isLmsIndicatorData(indicatorData)) {
+    const rows = getRowsForSex(indicatorData, args.sex)
+    if (!isWithinIndicatorRange(rows, sourceX)) {
+      throw new OutOfRangeError(
+        `${args.indicator} is outside the supported ${indicatorData.xType} range for ${args.standard}.`
+      )
+    }
+
+    zScore = valueToZ(args.measurement, findNearestRow(rows, sourceX))
+  } else if (isSdIndicatorData(indicatorData)) {
+    const rows = getRowsForSex(indicatorData, args.sex)
+    if (!isWithinIndicatorRange(rows, sourceX)) {
+      throw new OutOfRangeError(
+        `${args.indicator} is outside the supported ${indicatorData.xType} range for ${args.standard}.`
+      )
+    }
+
+    zScore = valueToZSdTable(args.measurement, findNearestRow(rows, sourceX))
+  } else {
+    throw new RangeError('Unsupported indicator model')
   }
-
-  const row = findNearestRow(rows, sourceX)
-  const zScore = isLmsIndicatorData(indicatorData)
-    ? valueToZ(args.measurement, row)
-    : isSdIndicatorData(indicatorData)
-      ? valueToZSdTable(args.measurement, row)
-      : (() => {
-          throw new RangeError('Unsupported indicator model')
-        })()
 
   return {
     indicator: args.indicator,
@@ -121,7 +128,8 @@ function assessIndicator(args: {
 }
 
 function pickWeightBySizeIndicator(standard: Standard, ageMonths: number, heightCm: number): Indicator | null {
-  const preferred = ageMonths < 24 ? ['weight-for-length', 'weight-for-height'] : ['weight-for-height', 'weight-for-length']
+  const preferred: Indicator[] =
+    ageMonths < 24 ? ['weight-for-length', 'weight-for-height'] : ['weight-for-height', 'weight-for-length']
 
   for (const indicator of preferred) {
     const indicatorData = getIndicatorData(standard, indicator)
@@ -129,8 +137,11 @@ function pickWeightBySizeIndicator(standard: Standard, ageMonths: number, height
       continue
     }
 
-    const rows = indicatorData.male
-    if (isWithinIndicatorRange(rows, heightCm)) {
+    if (isLmsIndicatorData(indicatorData) && isWithinIndicatorRange(indicatorData.male, heightCm)) {
+      return indicator
+    }
+
+    if (isSdIndicatorData(indicatorData) && isWithinIndicatorRange(indicatorData.male, heightCm)) {
       return indicator
     }
   }
