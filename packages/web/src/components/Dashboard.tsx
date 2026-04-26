@@ -15,6 +15,7 @@ import { formatDateLabel } from '../lib/format'
 import { ChartCard } from './ChartCard'
 import { ChildHeader } from './ChildHeader'
 import { ChildSwitcher } from './ChildSwitcher'
+import { DataIOButtons } from './DataIOButtons'
 import { MeasurementList } from './MeasurementList'
 import { MeasurementForm } from './MeasurementForm'
 import { ResetButton } from './ResetButton'
@@ -329,7 +330,10 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
           onDelete={handleDeleteMeasurement}
         />
 
-        <ResetButton onConfirm={handleResetAllData} />
+        <div className="dashboard-actions">
+          <DataIOButtons onImported={onMeasurementsChanged} />
+          <ResetButton onConfirm={handleResetAllData} />
+        </div>
 
         <button
           className="fab-button"

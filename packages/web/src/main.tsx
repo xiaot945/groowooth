@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 
 import App from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './styles/global.css'
 
 const rootElement = document.getElementById('root')
@@ -78,6 +79,8 @@ function RootApp() {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <RootApp />
+    <ErrorBoundary>
+      <RootApp />
+    </ErrorBoundary>
   </StrictMode>
 )

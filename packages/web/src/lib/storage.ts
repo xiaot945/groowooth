@@ -23,6 +23,17 @@ export class MeasurementMissingError extends Error {
   }
 }
 
+export class BackupValidationError extends Error {
+  static forField(field: string, value: unknown): BackupValidationError {
+    return new BackupValidationError(`备份文件中的 ${field} 不合法（${formatValidationValue(value)}）`)
+  }
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'BackupValidationError'
+  }
+}
+
 export interface ChildRecord {
   id: string
   name: string
@@ -46,6 +57,20 @@ export interface MeasurementRecord {
 interface MetaRecord {
   key: string
   value: string
+}
+
+export interface ImportedChildRecord extends ChildRecord {
+  sourceIndex: number
+}
+
+export interface ImportedMeasurementRecord extends MeasurementRecord {
+  sourceIndex: number
+}
+
+export interface ImportedDataSaveResult {
+  added: { children: number; measurements: number }
+  skipped: { children: number; measurements: number }
+  warnings: string[]
 }
 
 interface GroowoothDb extends DBSchema {
@@ -83,6 +108,47 @@ function publishStorageHealth(message: string | null): void {
 
 function nowIso(): string {
   return new Date().toISOString()
+}
+
+function formatValidationValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return JSON.stringify(value)
+  }
+
+  if (value === undefined) {
+    return 'undefined'
+  }
+
+  try {
+    const serialized = JSON.stringify(value)
+    return serialized ?? String(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function toChildRecord(child: ImportedChildRecord): ChildRecord {
+  return {
+    id: child.id,
+    name: child.name,
+    sex: child.sex,
+    dateOfBirth: child.dateOfBirth,
+    gestationalWeeks: child.gestationalWeeks,
+    createdAt: child.createdAt,
+    updatedAt: child.updatedAt
+  }
+}
+
+function toMeasurementRecord(measurement: ImportedMeasurementRecord): MeasurementRecord {
+  return {
+    childId: measurement.childId,
+    date: measurement.date,
+    ageMonths: measurement.ageMonths,
+    heightCm: measurement.heightCm,
+    weightKg: measurement.weightKg,
+    headCircumferenceCm: measurement.headCircumferenceCm,
+    note: measurement.note
+  }
 }
 
 function getDb(): Promise<IDBPDatabase<GroowoothDb>> {
@@ -263,6 +329,11 @@ export async function listMeasurements(childId: string): Promise<MeasurementReco
   return sortMeasurements(measurements)
 }
 
+export async function listAllMeasurements(): Promise<MeasurementRecord[]> {
+  const db = await getDb()
+  return sortMeasurements(await db.getAll('measurements'))
+}
+
 export async function addMeasurement(
   input: Omit<MeasurementRecord, 'ageMonths'> & { childBirthDate: string }
 ): Promise<MeasurementRecord> {
@@ -361,6 +432,119 @@ export async function deleteMeasurement(childId: string, date: string): Promise<
     })
   }
   await tx.done
+}
+
+export async function saveImportedData(input: {
+  children: ImportedChildRecord[]
+  measurements: ImportedMeasurementRecord[]
+}): Promise<ImportedDataSaveResult> {
+  const db = await getDb()
+  const tx = db.transaction(['children', 'meta', 'measurements'], 'readwrite')
+  const childStore = tx.objectStore('children')
+  const metaStore = tx.objectStore('meta')
+  const measurementStore = tx.objectStore('measurements')
+  const warnings: string[] = []
+  const childIdMap = new Map<string, string>()
+  let addedChildren = 0
+  let addedMeasurements = 0
+  let skippedChildren = 0
+  let skippedMeasurements = 0
+  let firstAddedChildId: string | null = null
+
+  for (const child of input.children) {
+    const childRecord = toChildRecord(child)
+    const existingChild = await childStore.get(child.id)
+
+    if (!existingChild) {
+      await childStore.put(childRecord)
+      childIdMap.set(child.id, child.id)
+      addedChildren += 1
+      firstAddedChildId ??= child.id
+      continue
+    }
+
+    if (existingChild.name === child.name) {
+      childIdMap.set(child.id, existingChild.id)
+      skippedChildren += 1
+      continue
+    }
+
+    let nextId = crypto.randomUUID()
+
+    while (await childStore.get(nextId)) {
+      nextId = crypto.randomUUID()
+    }
+
+    await childStore.put({
+      ...childRecord,
+      id: nextId
+    })
+    childIdMap.set(child.id, nextId)
+    addedChildren += 1
+    firstAddedChildId ??= nextId
+    warnings.push(`孩子“${child.name}”的 ID 与现有数据冲突，已分配新 ID。`)
+  }
+
+  for (const measurement of input.measurements) {
+    const resolvedChildId = childIdMap.get(measurement.childId) ?? measurement.childId
+    const child = await childStore.get(resolvedChildId)
+
+    if (!child) {
+      skippedMeasurements += 1
+      warnings.push(`已跳过 ${measurement.date} 的测量记录：找不到对应孩子。`)
+      continue
+    }
+
+    const recomputedAgeMonths = ageInMonths(child.dateOfBirth, measurement.date)
+
+    if (recomputedAgeMonths < 0) {
+      throw BackupValidationError.forField(`measurements[${measurement.sourceIndex}].date`, measurement.date)
+    }
+
+    const existingMeasurement = await measurementStore.get([resolvedChildId, measurement.date])
+
+    if (existingMeasurement) {
+      skippedMeasurements += 1
+      warnings.push(`已跳过 ${measurement.date} 的重复测量记录。`)
+      continue
+    }
+
+    const measurementRecord = toMeasurementRecord(measurement)
+
+    if (Math.abs(measurement.ageMonths - recomputedAgeMonths) > 0.5) {
+      warnings.push(`已使用 ${measurement.date} 的重算月龄，原值已忽略。`)
+    }
+
+    await measurementStore.put({
+      ...measurementRecord,
+      childId: resolvedChildId,
+      ageMonths: recomputedAgeMonths
+    })
+    addedMeasurements += 1
+  }
+
+  const activeChildMeta = await metaStore.get(ACTIVE_CHILD_META_KEY)
+
+  if (!activeChildMeta && firstAddedChildId) {
+    await metaStore.put({
+      key: ACTIVE_CHILD_META_KEY,
+      value: firstAddedChildId
+    })
+  }
+
+  await tx.done
+
+  return {
+    added: {
+      children: addedChildren,
+      measurements: addedMeasurements
+    },
+    skipped: {
+      children: skippedChildren,
+      measurements: skippedMeasurements
+    },
+    warnings
+  }
 }
 
 export async function resetAllData(): Promise<void> {

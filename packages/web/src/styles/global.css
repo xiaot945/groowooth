@@ -97,6 +97,28 @@ button:focus-visible {
   padding: 1rem 1rem 6rem;
 }
 
+.error-boundary {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.error-boundary__card {
+  width: min(100%, 34rem);
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.5rem;
+}
+
+.error-boundary__detail {
+  font-size: 0.92rem;
+}
+
+.error-boundary__actions {
+  margin-top: 0.4rem;
+}
+
 .dashboard {
   display: grid;
   gap: 1rem;
@@ -504,10 +526,36 @@ h2 {
   padding: 0.55rem 0.85rem;
 }
 
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.75rem 1rem;
+  padding-bottom: 1rem;
+}
+
+.data-io {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+}
+
+.data-io__row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.data-io__status {
+  max-width: min(100%, 20rem);
+  text-align: center;
+}
+
 .reset-button-wrap {
   display: flex;
   justify-content: center;
-  padding-bottom: 1rem;
 }
 
 .text-button {
@@ -517,6 +565,11 @@ h2 {
   background: transparent;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.text-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .pwa-toast-stack {
