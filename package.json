@@ -9,6 +9,7 @@
     "build": "pnpm -r run build",
     "build:web": "pnpm --filter @groowooth/web build",
     "build:standards": "pnpm exec tsx scripts/build-standards.ts",
+    "deploy:web": "pnpm build:web && npx wrangler pages deploy packages/web/dist --project-name=groowooth",
     "test": "vitest run",
     "lint": "pnpm -r run lint",
     "format": "prettier --write ."
