@@ -9,6 +9,20 @@ const DB_VERSION = 2
 const ACTIVE_CHILD_META_KEY = 'activeChildId'
 const STORAGE_BLOCKED_MESSAGE = '请关闭其他标签页或刷新页面。'
 
+export class MeasurementConflictError extends Error {
+  constructor(message = '目标日期已有测量记录') {
+    super(message)
+    this.name = 'MeasurementConflictError'
+  }
+}
+
+export class MeasurementMissingError extends Error {
+  constructor(message = '原记录不存在（可能已被其他标签页删除）') {
+    super(message)
+    this.name = 'MeasurementMissingError'
+  }
+}
+
 export interface ChildRecord {
   id: string
   name: string
@@ -280,6 +294,58 @@ export async function addMeasurement(
   await tx.done
 
   return record
+}
+
+export async function updateMeasurement(input: {
+  childId: string
+  originalDate: string
+  date: string
+  ageMonths: number
+  heightCm?: number
+  weightKg?: number
+  headCircumferenceCm?: number
+  note?: string
+}): Promise<void> {
+  assertMeasurementPayload(input)
+
+  if (input.ageMonths < 0) {
+    throw new RangeError('Measurement date cannot be earlier than the child birth date.')
+  }
+
+  const { originalDate, ...record } = input
+  const db = await getDb()
+  const tx = db.transaction(['children', 'measurements'], 'readwrite')
+  const childStore = tx.objectStore('children')
+  const measurementStore = tx.objectStore('measurements')
+  const originalKey: [string, string] = [record.childId, originalDate]
+  const originalRecord = await measurementStore.get(originalKey)
+
+  if (!originalRecord) {
+    throw new MeasurementMissingError()
+  }
+
+  if (originalDate === record.date) {
+    await measurementStore.put(record)
+  } else {
+    const destinationRecord = await measurementStore.get([record.childId, record.date])
+
+    if (destinationRecord) {
+      throw new MeasurementConflictError()
+    }
+
+    await measurementStore.delete(originalKey)
+    await measurementStore.put(record)
+  }
+
+  const child = await childStore.get(record.childId)
+  if (child) {
+    await childStore.put({
+      ...child,
+      updatedAt: nowIso()
+    })
+  }
+
+  await tx.done
 }
 
 export async function deleteMeasurement(childId: string, date: string): Promise<void> {

@@ -450,9 +450,13 @@ h2 {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 
-.measurement-list__delete {
+.measurement-list__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   min-width: 44px;
   min-height: 44px;
@@ -463,6 +467,15 @@ h2 {
   color: var(--muted);
   font-size: 1.4rem;
   line-height: 1;
+}
+
+.measurement-list__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.measurement-list__delete {
+  font-size: 1.5rem;
 }
 
 .measurement-list__confirm {

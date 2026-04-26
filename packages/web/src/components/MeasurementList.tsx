@@ -7,6 +7,7 @@ import { formatMeasurementAgeLabel } from '../lib/format'
 interface MeasurementListProps {
   measurements: MeasurementRecord[]
   childBirthDate: string
+  onEdit: (measurement: MeasurementRecord) => void
   onDelete: (date: string) => Promise<void>
 }
 
@@ -28,7 +29,7 @@ function formatMeasurementValues(record: MeasurementRecord): string[] {
   return values
 }
 
-export function MeasurementList({ measurements, childBirthDate, onDelete }: MeasurementListProps) {
+export function MeasurementList({ measurements, childBirthDate, onEdit, onDelete }: MeasurementListProps) {
   const [confirmingDate, setConfirmingDate] = useState<string | null>(null)
   const [deletingDate, setDeletingDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -104,17 +105,43 @@ export function MeasurementList({ measurements, childBirthDate, onDelete }: Meas
                           </button>
                         </div>
                       ) : (
-                        <button
-                          className="measurement-list__delete"
-                          type="button"
-                          aria-label="删除测量记录"
-                          onClick={() => {
-                            setConfirmingDate(record.date)
-                            setError(null)
-                          }}
-                        >
-                          ×
-                        </button>
+                        <>
+                          <button
+                            className="measurement-list__icon-button"
+                            type="button"
+                            aria-label="编辑测量记录"
+                            onClick={() => {
+                              setConfirmingDate(null)
+                              setError(null)
+                              onEdit(record)
+                            }}
+                          >
+                            <svg
+                              aria-hidden="true"
+                              className="measurement-list__icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M12 20h9" />
+                              <path d="m16.5 3.5 4 4L7 21l-4 1 1-4Z" />
+                            </svg>
+                          </button>
+                          <button
+                            className="measurement-list__icon-button measurement-list__delete"
+                            type="button"
+                            aria-label="删除测量记录"
+                            onClick={() => {
+                              setConfirmingDate(record.date)
+                              setError(null)
+                            }}
+                          >
+                            ×
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

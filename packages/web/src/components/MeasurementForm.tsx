@@ -1,14 +1,23 @@
 import { useState, type FormEvent } from 'react'
 
-import { addMeasurement } from '../lib/storage'
-import type { ChildRecord, MeasurementRecord } from '../lib/storage'
+import type { ChildRecord } from '../lib/storage'
 import { ageInMonths } from '../lib/age'
 import { todayIsoDate } from '../lib/format'
 
+interface MeasurementFormValues {
+  date: string
+  heightCm?: number
+  weightKg?: number
+  headCircumferenceCm?: number
+}
+
 interface MeasurementFormProps {
   child: ChildRecord
+  initialValues?: MeasurementFormValues
+  mode?: 'add' | 'edit'
+  errorMessage?: string | null
   onCancel: () => void
-  onSaved: (record: MeasurementRecord) => void | Promise<void>
+  onSubmit: (values: MeasurementFormValues) => Promise<void>
 }
 
 function parseOptionalNumber(value: string): number | undefined {
@@ -19,15 +28,31 @@ function parseOptionalNumber(value: string): number | undefined {
   return Number(value)
 }
 
-export function MeasurementForm({ child, onCancel, onSaved }: MeasurementFormProps) {
-  const [date, setDate] = useState(todayIsoDate())
-  const [heightCm, setHeightCm] = useState('')
-  const [weightKg, setWeightKg] = useState('')
-  const [headCircumferenceCm, setHeadCircumferenceCm] = useState('')
+function formatInitialNumber(value?: number): string {
+  return value === undefined ? '' : String(value)
+}
+
+export function MeasurementForm({
+  child,
+  initialValues,
+  mode = 'add',
+  errorMessage = null,
+  onCancel,
+  onSubmit
+}: MeasurementFormProps) {
+  const [date, setDate] = useState(initialValues?.date ?? todayIsoDate())
+  const [heightCm, setHeightCm] = useState(formatInitialNumber(initialValues?.heightCm))
+  const [weightKg, setWeightKg] = useState(formatInitialNumber(initialValues?.weightKg))
+  const [headCircumferenceCm, setHeadCircumferenceCm] = useState(
+    formatInitialNumber(initialValues?.headCircumferenceCm)
+  )
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const agePreview = date ? ageInMonths(child.dateOfBirth, date) : null
+  const displayedError = error ?? errorMessage
+  const title = mode === 'edit' ? '编辑测量' : '记录测量'
+  const submitLabel = mode === 'edit' ? '保存修改' : '保存'
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -61,15 +86,12 @@ export function MeasurementForm({ child, onCancel, onSaved }: MeasurementFormPro
     setError(null)
 
     try {
-      const record = await addMeasurement({
-        childId: child.id,
-        childBirthDate: child.dateOfBirth,
+      await onSubmit({
         date,
         heightCm: parsedHeight,
         weightKg: parsedWeight,
         headCircumferenceCm: parsedHead
       })
-      await onSaved(record)
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : '保存失败，请稍后再试。'
       setError(message)
@@ -89,8 +111,8 @@ export function MeasurementForm({ child, onCancel, onSaved }: MeasurementFormPro
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">新增记录</p>
-            <h2 id="measurement-form-title">今天量到了什么？</h2>
+            <p className="eyebrow">{mode === 'edit' ? '修改记录' : '新增记录'}</p>
+            <h2 id="measurement-form-title">{title}</h2>
           </div>
           <button className="ghost-button" type="button" onClick={onCancel}>
             取消
@@ -153,9 +175,9 @@ export function MeasurementForm({ child, onCancel, onSaved }: MeasurementFormPro
             />
           </div>
 
-          {error ? (
+          {displayedError ? (
             <p className="status-message" role="alert">
-              {error}
+              {displayedError}
             </p>
           ) : null}
 
@@ -164,7 +186,7 @@ export function MeasurementForm({ child, onCancel, onSaved }: MeasurementFormPro
               稍后再记
             </button>
             <button className="primary-button" type="submit" disabled={isSaving}>
-              {isSaving ? '保存并生成中…' : '保存并看曲线'}
+              {isSaving ? '保存中…' : submitLabel}
             </button>
           </div>
         </form>

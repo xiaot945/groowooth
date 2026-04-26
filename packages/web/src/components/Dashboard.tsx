@@ -1,8 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Indicator } from '@groowooth/core'
 
-import { deleteMeasurement, resetAllData } from '../lib/storage'
+import {
+  addMeasurement,
+  deleteMeasurement,
+  MeasurementConflictError,
+  MeasurementMissingError,
+  resetAllData,
+  updateMeasurement
+} from '../lib/storage'
 import type { ChildRecord, MeasurementRecord } from '../lib/storage'
+import { ageInMonths } from '../lib/age'
 import { formatDateLabel } from '../lib/format'
 import { ChartCard } from './ChartCard'
 import { ChildHeader } from './ChildHeader'
@@ -136,15 +144,27 @@ async function buildLatestSummary(child: ChildRecord, measurements: MeasurementR
 
 export function Dashboard({ activeChildId, child, measurements, onMeasurementsChanged }: DashboardProps) {
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingMeasurement, setEditingMeasurement] = useState<MeasurementRecord | null>(null)
+  const [measurementFormError, setMeasurementFormError] = useState<string | null>(null)
   const [isChildSwitcherOpen, setIsChildSwitcherOpen] = useState(false)
   const [latestSummary, setLatestSummary] = useState<LatestSummary | null>(null)
   const [isSummaryLoading, setIsSummaryLoading] = useState(false)
+  const closeEditTimeoutRef = useRef<number | null>(null)
+
+  function clearPendingEditClose() {
+    if (closeEditTimeoutRef.current !== null) {
+      window.clearTimeout(closeEditTimeoutRef.current)
+      closeEditTimeoutRef.current = null
+    }
+  }
 
   useEffect(() => {
     void import('@groowooth/core')
       .then(({ loadStandard }) => loadStandard(STANDARD))
       .catch(() => {})
   }, [])
+
+  useEffect(() => () => clearPendingEditClose(), [])
 
   useEffect(() => {
     if (measurements.length === 0) {
@@ -171,7 +191,10 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
   }, [activeChildId, child, measurements])
 
   useEffect(() => {
+    clearPendingEditClose()
     setIsFormOpen(false)
+    setEditingMeasurement(null)
+    setMeasurementFormError(null)
     setIsChildSwitcherOpen(false)
   }, [activeChildId])
 
@@ -183,14 +206,73 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
   const visibleCards =
     nonEmptyCards.length > 0 ? nonEmptyCards : chartCards.filter((card) => card.indicator !== 'bmi-for-age')
 
-  async function handleSaved(_record: MeasurementRecord) {
+  async function handleSubmitMeasurement(values: {
+    date: string
+    heightCm?: number
+    weightKg?: number
+    headCircumferenceCm?: number
+  }) {
+    clearPendingEditClose()
+    setMeasurementFormError(null)
+
+    try {
+      if (editingMeasurement) {
+        await updateMeasurement({
+          childId: child.id,
+          originalDate: editingMeasurement.date,
+          date: values.date,
+          ageMonths: ageInMonths(child.dateOfBirth, values.date),
+          heightCm: values.heightCm,
+          weightKg: values.weightKg,
+          headCircumferenceCm: values.headCircumferenceCm,
+          note: editingMeasurement.note
+        })
+      } else {
+        await addMeasurement({
+          childId: child.id,
+          childBirthDate: child.dateOfBirth,
+          date: values.date,
+          heightCm: values.heightCm,
+          weightKg: values.weightKg,
+          headCircumferenceCm: values.headCircumferenceCm
+        })
+      }
+    } catch (error) {
+      if (error instanceof MeasurementConflictError) {
+        setMeasurementFormError('目标日期已有测量记录，请选其他日期')
+        return
+      }
+
+      if (error instanceof MeasurementMissingError) {
+        setMeasurementFormError('原记录已被删除，请重新打开')
+        closeEditTimeoutRef.current = window.setTimeout(() => {
+          closeEditTimeoutRef.current = null
+          setMeasurementFormError(null)
+          setIsFormOpen(false)
+          setEditingMeasurement(null)
+        }, 900)
+        return
+      }
+
+      throw error
+    }
+
     await onMeasurementsChanged()
+    setMeasurementFormError(null)
     setIsFormOpen(false)
+    setEditingMeasurement(null)
   }
 
   async function handleDeleteMeasurement(date: string) {
     await deleteMeasurement(child.id, date)
     await onMeasurementsChanged()
+  }
+
+  function handleEditMeasurement(measurement: MeasurementRecord) {
+    clearPendingEditClose()
+    setIsFormOpen(false)
+    setMeasurementFormError(null)
+    setEditingMeasurement(measurement)
   }
 
   async function handleResetAllData() {
@@ -243,6 +325,7 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
         <MeasurementList
           measurements={measurements}
           childBirthDate={child.dateOfBirth}
+          onEdit={handleEditMeasurement}
           onDelete={handleDeleteMeasurement}
         />
 
@@ -252,13 +335,40 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
           className="fab-button"
           type="button"
           aria-label="新增测量记录"
-          onClick={() => setIsFormOpen(true)}
+          onClick={() => {
+            clearPendingEditClose()
+            setMeasurementFormError(null)
+            setEditingMeasurement(null)
+            setIsFormOpen(true)
+          }}
         >
           + 记录
         </button>
 
-        {isFormOpen ? (
-          <MeasurementForm child={child} onCancel={() => setIsFormOpen(false)} onSaved={handleSaved} />
+        {isFormOpen || editingMeasurement ? (
+          <MeasurementForm
+            key={editingMeasurement ? `edit:${editingMeasurement.date}` : 'add'}
+            child={child}
+            mode={editingMeasurement ? 'edit' : 'add'}
+            initialValues={
+              editingMeasurement
+                ? {
+                    date: editingMeasurement.date,
+                    heightCm: editingMeasurement.heightCm,
+                    weightKg: editingMeasurement.weightKg,
+                    headCircumferenceCm: editingMeasurement.headCircumferenceCm
+                  }
+                : undefined
+            }
+            onCancel={() => {
+              clearPendingEditClose()
+              setMeasurementFormError(null)
+              setIsFormOpen(false)
+              setEditingMeasurement(null)
+            }}
+            errorMessage={measurementFormError}
+            onSubmit={handleSubmitMeasurement}
+          />
         ) : null}
 
         {isChildSwitcherOpen ? (
