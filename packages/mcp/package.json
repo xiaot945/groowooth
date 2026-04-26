@@ -1,0 +1,30 @@
+{
+  "name": "@groowooth/mcp",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/server.js",
+  "bin": {
+    "groowooth-mcp": "./bin/groowooth-mcp.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "start": "node bin/groowooth-mcp.js",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@groowooth/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}
