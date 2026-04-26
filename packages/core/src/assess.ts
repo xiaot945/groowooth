@@ -13,7 +13,7 @@ import {
   isWithinIndicatorRange,
   toSourceX
 } from './standard-data'
-import { DISCLAIMER, type Indicator, type Sex, type Standard, type ZRange } from './types'
+import { DISCLAIMER, type Indicator, type Sex, type Standard, type StandardDataset, type ZRange } from './types'
 
 const assessInputSchema = z.object({
   ageMonths: z.number().finite().nonnegative(),
@@ -86,9 +86,10 @@ function assessIndicator(args: {
   sex: Sex
   ageMonths: number
   measurement: number
+  dataset: StandardDataset
   sizeCm?: number
 }): IndicatorResult {
-  const indicatorData = getIndicatorData(args.standard, args.indicator)
+  const indicatorData = getIndicatorData(args.dataset, args.indicator)
 
   if (!indicatorData) {
     throw new OutOfRangeError(`Indicator ${args.indicator} is not available for ${args.standard}.`)
@@ -127,12 +128,12 @@ function assessIndicator(args: {
   }
 }
 
-function pickWeightBySizeIndicator(standard: Standard, ageMonths: number, heightCm: number): Indicator | null {
+function pickWeightBySizeIndicator(dataset: StandardDataset, ageMonths: number, heightCm: number): Indicator | null {
   const preferred: Indicator[] =
     ageMonths < 24 ? ['weight-for-length', 'weight-for-height'] : ['weight-for-height', 'weight-for-length']
 
   for (const indicator of preferred) {
-    const indicatorData = getIndicatorData(standard, indicator)
+    const indicatorData = getIndicatorData(dataset, indicator)
     if (!indicatorData) {
       continue
     }
@@ -152,9 +153,10 @@ function pickWeightBySizeIndicator(standard: Standard, ageMonths: number, height
 /**
  * v1 selects the nearest source row for each assessment and does not interpolate between rows.
  */
-export function assess(input: AssessInput): AssessResult {
+export async function assess(input: AssessInput): Promise<AssessResult> {
   const parsed = assessInputSchema.parse(input)
   const standard = parsed.standard
+  const dataset = await getStandardDataset(standard)
   const assessments: IndicatorResult[] = []
 
   if (parsed.heightCm !== undefined) {
@@ -165,7 +167,8 @@ export function assess(input: AssessInput): AssessResult {
         indicator: 'height-for-age',
         sex: parsed.sex,
         ageMonths: parsed.ageMonths,
-        measurement: parsed.heightCm
+        measurement: parsed.heightCm,
+        dataset
       })
     )
   }
@@ -178,7 +181,8 @@ export function assess(input: AssessInput): AssessResult {
         indicator: 'weight-for-age',
         sex: parsed.sex,
         ageMonths: parsed.ageMonths,
-        measurement: parsed.weightKg
+        measurement: parsed.weightKg,
+        dataset
       })
     )
 
@@ -190,11 +194,12 @@ export function assess(input: AssessInput): AssessResult {
           indicator: 'bmi-for-age',
           sex: parsed.sex,
           ageMonths: parsed.ageMonths,
-          measurement: bmi
+          measurement: bmi,
+          dataset
         })
       )
 
-      const weightBySizeIndicator = pickWeightBySizeIndicator(standard, parsed.ageMonths, parsed.heightCm)
+      const weightBySizeIndicator = pickWeightBySizeIndicator(dataset, parsed.ageMonths, parsed.heightCm)
       if (weightBySizeIndicator) {
         assessments.push(
           assessIndicator({
@@ -203,6 +208,7 @@ export function assess(input: AssessInput): AssessResult {
             sex: parsed.sex,
             ageMonths: parsed.ageMonths,
             measurement: parsed.weightKg,
+            dataset,
             sizeCm: parsed.heightCm
           })
         )
@@ -218,14 +224,15 @@ export function assess(input: AssessInput): AssessResult {
         indicator: 'head-for-age',
         sex: parsed.sex,
         ageMonths: parsed.ageMonths,
-        measurement: parsed.headCircumferenceCm
+        measurement: parsed.headCircumferenceCm,
+        dataset
       })
     )
   }
 
   return {
     standard,
-    standardVersion: getStandardDataset(standard).version,
+    standardVersion: dataset.version,
     assessments,
     disclaimer: DISCLAIMER
   }

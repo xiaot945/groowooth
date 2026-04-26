@@ -65,7 +65,7 @@ function standardLabel(standard: Standard): string {
   }
 }
 
-export function interpret(input: InterpretInput): InterpretResult {
+export async function interpret(input: InterpretInput): Promise<InterpretResult> {
   const percentile = Math.round(zToPercentile(input.zScore) * 100)
   const standard = input.standard ?? 'nhc-2022'
 

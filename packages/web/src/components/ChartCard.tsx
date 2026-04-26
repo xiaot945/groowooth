@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { renderChart, type Sex, type Standard } from '@groowooth/core'
+import type { Sex, Standard } from '@groowooth/core'
 
 type AgeIndicator = 'height-for-age' | 'weight-for-age' | 'bmi-for-age' | 'head-for-age'
 
@@ -15,6 +15,15 @@ interface ChartCardProps {
   measurements: ChartPoint[]
   sex: Sex
   standard: Standard
+}
+
+interface ChartRequest {
+  standard: Standard
+  indicator: AgeIndicator
+  sex: Sex
+  measurements: ChartPoint[]
+  locale: 'zh-CN'
+  theme: 'light' | 'dark'
 }
 
 function indicatorLabel(indicator: AgeIndicator): string {
@@ -62,6 +71,46 @@ function useChartTheme(): 'light' | 'dark' {
 export function ChartCard({ indicator, measurements, sex, standard }: ChartCardProps) {
   const theme = useChartTheme()
   const sortedMeasurements = [...measurements].sort((left, right) => left.x - right.x)
+  const chartRequest: ChartRequest = {
+    standard,
+    indicator,
+    sex,
+    measurements: sortedMeasurements,
+    locale: 'zh-CN' as const,
+    theme
+  }
+  const chartRequestKey = JSON.stringify(chartRequest)
+  const [chartMarkup, setChartMarkup] = useState<string | null>(null)
+  const [chartError, setChartError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (chartRequest.measurements.length === 0) {
+      setChartMarkup(null)
+      setChartError(null)
+      return
+    }
+
+    let isCancelled = false
+    setChartMarkup(null)
+    setChartError(null)
+
+    void import('@groowooth/core')
+      .then(({ renderChart }) => renderChart(chartRequest))
+      .then((svg) => {
+        if (!isCancelled) {
+          setChartMarkup(svg)
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setChartError(error instanceof Error ? error.message : '图表加载失败，请稍后重试。')
+        }
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [chartRequestKey])
 
   if (sortedMeasurements.length === 0) {
     return (
@@ -77,14 +126,6 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
   }
 
   const latestMeasurement = sortedMeasurements[sortedMeasurements.length - 1]
-  const chartMarkup = renderChart({
-    standard,
-    indicator,
-    sex,
-    measurements: sortedMeasurements,
-    locale: 'zh-CN',
-    theme
-  })
 
   return (
     <article className="surface-card chart-card">
@@ -98,8 +139,21 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
       </div>
       <div
         className="chart-card__graphic"
-        dangerouslySetInnerHTML={{ __html: chartMarkup }}
-      />
+        aria-busy={chartMarkup === null && chartError === null}
+      >
+        {chartMarkup ? (
+          <div dangerouslySetInnerHTML={{ __html: chartMarkup }} />
+        ) : (
+          <div
+            className="chart-card__placeholder"
+            role={chartError ? 'alert' : 'status'}
+            aria-live="polite"
+          >
+            <div className="chart-card__skeleton" aria-hidden="true" />
+            <p className="muted-text">{chartError ?? '正在加载…'}</p>
+          </div>
+        )}
+      </div>
     </article>
   )
 }

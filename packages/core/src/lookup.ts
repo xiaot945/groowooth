@@ -5,6 +5,7 @@ import {
   getDisplayXUnit,
   getIndicatorData,
   getRowsForSex,
+  getStandardDataset,
   isLmsIndicatorData,
   isSdIndicatorData,
   toDisplayX
@@ -52,8 +53,9 @@ function snapPercentileToSdZ(percentile: number): number {
   return Math.max(-3, Math.min(3, Math.round(z)))
 }
 
-export function lookup(input: LookupInput): CurveData {
-  const indicatorData = getIndicatorData(input.standard, input.indicator)
+export async function lookup(input: LookupInput): Promise<CurveData> {
+  const dataset = await getStandardDataset(input.standard)
+  const indicatorData = getIndicatorData(dataset, input.indicator)
 
   if (!indicatorData) {
     throw new OutOfRangeError(`Indicator ${input.indicator} is not available for ${input.standard}.`)

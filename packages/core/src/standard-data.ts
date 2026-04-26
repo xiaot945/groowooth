@@ -1,4 +1,3 @@
-import { NHC_2022, WHO_2006, WHO_2007 } from './standards'
 import type {
   AxisType,
   AxisUnit,
@@ -13,21 +12,58 @@ import type {
   StandardIndicatorData
 } from './types'
 
-export const STANDARD_DATASETS: Record<Standard, StandardDataset> = {
-  'who-2006': WHO_2006,
-  'who-2007': WHO_2007,
-  'nhc-2022': NHC_2022
+const defaultLoaders: Record<Standard, () => Promise<StandardDataset>> = {
+  'who-2006': () => import('./standards/who-2006').then((module) => module.WHO_2006),
+  'who-2007': () => import('./standards/who-2007').then((module) => module.WHO_2007),
+  'nhc-2022': () => import('./standards/nhc-2022').then((module) => module.NHC_2022)
 }
+const loaders = new Map<Standard, () => Promise<StandardDataset>>(Object.entries(defaultLoaders) as [
+  Standard,
+  () => Promise<StandardDataset>
+][])
+const cache = new Map<Standard, StandardDataset>()
+const pendingLoads = new Map<Standard, Promise<StandardDataset>>()
 
 export const DEFAULT_LOOKUP_PERCENTILES = [3, 15, 50, 85, 97] as const
 export const DAYS_PER_MONTH = 365.25 / 12
 
-export function getStandardDataset(standard: Standard): StandardDataset {
-  return STANDARD_DATASETS[standard]
+export async function getStandardDataset(standard: Standard): Promise<StandardDataset> {
+  const cached = cache.get(standard)
+  if (cached) {
+    return cached
+  }
+
+  const pending = pendingLoads.get(standard)
+  if (pending) {
+    return pending
+  }
+
+  const loader = loaders.get(standard)
+  if (!loader) {
+    throw new RangeError(`No standard dataset loader registered for ${standard}`)
+  }
+
+  const nextLoad = loader()
+    .then((dataset) => {
+      cache.set(standard, dataset)
+      pendingLoads.delete(standard)
+      return dataset
+    })
+    .catch((error: unknown) => {
+      pendingLoads.delete(standard)
+      throw error
+    })
+
+  pendingLoads.set(standard, nextLoad)
+  return nextLoad
 }
 
-export function getIndicatorData(standard: Standard, indicator: Indicator): StandardIndicatorData | null {
-  return getStandardDataset(standard).indicators[indicator] ?? null
+export async function loadStandard(standard: Standard): Promise<void> {
+  await getStandardDataset(standard)
+}
+
+export function getIndicatorData(dataset: StandardDataset, indicator: Indicator): StandardIndicatorData | null {
+  return dataset.indicators[indicator] ?? null
 }
 
 export function isLmsIndicatorData(indicator: StandardIndicatorData): indicator is LmsIndicatorData {
@@ -92,4 +128,23 @@ export function isWithinIndicatorRange<Row extends { x: number }>(rows: Row[], v
   const first = rows[0]
   const last = rows.at(-1)
   return Boolean(first && last && value >= first.x && value <= last.x)
+}
+
+export function __resetStandardDataForTest(): void {
+  cache.clear()
+  pendingLoads.clear()
+  loaders.clear()
+
+  for (const [standard, loader] of Object.entries(defaultLoaders) as [Standard, () => Promise<StandardDataset>][]) {
+    loaders.set(standard, loader)
+  }
+}
+
+export function __setStandardLoaderForTest(
+  standard: Standard,
+  loader: () => Promise<StandardDataset>
+): void {
+  cache.delete(standard)
+  pendingLoads.delete(standard)
+  loaders.set(standard, loader)
 }

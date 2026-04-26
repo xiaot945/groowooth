@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { lookup } from '../src/lookup'
 
 describe('lookup', () => {
-  it('returns aligned percentile curves for WHO 2006 height-for-age', () => {
-    const result = lookup({
+  it('returns aligned percentile curves for WHO 2006 height-for-age', async () => {
+    const result = await lookup({
       standard: 'who-2006',
       indicator: 'height-for-age',
       sex: 'male',

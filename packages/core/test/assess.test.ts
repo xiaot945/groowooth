@@ -13,8 +13,8 @@ function byIndicator(assessments: IndicatorResult[], indicator: string): Indicat
 }
 
 describe('assess', () => {
-  it('assesses a 12 month boy against the default NHC standard', () => {
-    const result = assess({
+  it('assesses a 12 month boy against the default NHC standard', async () => {
+    const result = await assess({
       ageMonths: 12,
       sex: 'male',
       heightCm: 75,
@@ -27,14 +27,14 @@ describe('assess', () => {
     expect(Math.abs(byIndicator(result.assessments, 'weight-for-age').zScore)).toBeLessThan(2)
   })
 
-  it('keeps WHO 2006 z-scores close to the NHC result for the same child', () => {
-    const nhc = assess({
+  it('keeps WHO 2006 z-scores close to the NHC result for the same child', async () => {
+    const nhc = await assess({
       ageMonths: 12,
       sex: 'male',
       heightCm: 75,
       weightKg: 10
     })
-    const who = assess({
+    const who = await assess({
       ageMonths: 12,
       sex: 'male',
       heightCm: 75,
@@ -57,8 +57,8 @@ describe('assess', () => {
     ).toBeLessThanOrEqual(0.5)
   })
 
-  it('assesses an older child against WHO 2007', () => {
-    const result = assess({
+  it('assesses an older child against WHO 2007', async () => {
+    const result = await assess({
       ageMonths: 120,
       sex: 'male',
       heightCm: 138,
@@ -73,14 +73,14 @@ describe('assess', () => {
     expect(Math.abs(byIndicator(result.assessments, 'bmi-for-age').zScore)).toBeLessThan(2)
   })
 
-  it('rejects implausible measurements', () => {
-    expect(() =>
+  it('rejects implausible measurements', async () => {
+    await expect(
       assess({
         ageMonths: 12,
         sex: 'male',
         heightCm: 200,
         weightKg: 10
       })
-    ).toThrow(OutOfPlausibleRangeError)
+    ).rejects.toThrow(OutOfPlausibleRangeError)
   })
 })

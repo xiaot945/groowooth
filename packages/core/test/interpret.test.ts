@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { interpret } from '../src/interpret'
 
 describe('interpret', () => {
-  it('renders the 50th percentile for z=0', () => {
-    const result = interpret({
+  it('renders the 50th percentile for z=0', async () => {
+    const result = await interpret({
       zScore: 0,
       indicator: 'height-for-age',
       ageMonths: 24,
@@ -16,8 +16,8 @@ describe('interpret', () => {
     expect(result.disclaimer).toBeDefined()
   })
 
-  it('treats z=2 as within_2_sd', () => {
-    const result = interpret({
+  it('treats z=2 as within_2_sd', async () => {
+    const result = await interpret({
       zScore: 2,
       indicator: 'weight-for-age',
       ageMonths: 24,
@@ -27,8 +27,8 @@ describe('interpret', () => {
     expect(result.range).toBe('within_2_sd')
   })
 
-  it('treats z=-2.5 as beyond_2_sd without clinical wording', () => {
-    const result = interpret({
+  it('treats z=-2.5 as beyond_2_sd without clinical wording', async () => {
+    const result = await interpret({
       zScore: -2.5,
       indicator: 'bmi-for-age',
       ageMonths: 36,

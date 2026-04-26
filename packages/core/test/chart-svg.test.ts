@@ -4,8 +4,8 @@ import { renderChart } from '../src/chart-svg'
 import { DISCLAIMER } from '../src/types'
 
 describe('renderChart', () => {
-  it('renders percentile curves and shared framing with no measurements', () => {
-    const svg = renderChart({
+  it('renders percentile curves and shared framing with no measurements', async () => {
+    const svg = await renderChart({
       standard: 'nhc-2022',
       indicator: 'height-for-age',
       sex: 'male',
@@ -19,8 +19,8 @@ describe('renderChart', () => {
     expect(svg).toContain(DISCLAIMER)
   })
 
-  it('renders one circle per measurement with value tooltips', () => {
-    const svg = renderChart({
+  it('renders one circle per measurement with value tooltips', async () => {
+    const svg = await renderChart({
       standard: 'nhc-2022',
       indicator: 'height-for-age',
       sex: 'male',
@@ -39,14 +39,14 @@ describe('renderChart', () => {
     expect(svg).toContain('69.7 cm')
   })
 
-  it('uses zh-CN titles by default', () => {
-    const maleSvg = renderChart({
+  it('uses zh-CN titles by default', async () => {
+    const maleSvg = await renderChart({
       standard: 'nhc-2022',
       indicator: 'height-for-age',
       sex: 'male',
       measurements: []
     })
-    const femaleSvg = renderChart({
+    const femaleSvg = await renderChart({
       standard: 'nhc-2022',
       indicator: 'weight-for-age',
       sex: 'female',
@@ -57,8 +57,8 @@ describe('renderChart', () => {
     expect(femaleSvg).toContain('女童 体重 (NHC 2022)')
   })
 
-  it('uses English titles when locale is en', () => {
-    const svg = renderChart({
+  it('uses English titles when locale is en', async () => {
+    const svg = await renderChart({
       standard: 'who-2006',
       indicator: 'height-for-age',
       sex: 'male',
@@ -69,8 +69,8 @@ describe('renderChart', () => {
     expect(svg).toContain('Boy Height (WHO 2006)')
   })
 
-  it('produces a basically well-formed svg string', () => {
-    const svg = renderChart({
+  it('produces a basically well-formed svg string', async () => {
+    const svg = await renderChart({
       standard: 'nhc-2022',
       indicator: 'height-for-age',
       sex: 'male',

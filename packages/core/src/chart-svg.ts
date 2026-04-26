@@ -192,12 +192,12 @@ function yAxisLabel(indicator: Indicator, locale: 'zh-CN' | 'en'): string {
   return `${label} (${valueUnit(indicator)})`
 }
 
-function buildLabels(
+async function buildLabels(
   curveData: CurveData,
   locale: 'zh-CN' | 'en',
   measurementCount: number
-): ChartLabels {
-  const dataset = getStandardDataset(curveData.standard)
+): Promise<ChartLabels> {
+  const dataset = await getStandardDataset(curveData.standard)
   const title = `${sexLabel(curveData.sex, locale)} ${indicatorLabel(curveData.indicator, locale)} (${standardLabel(curveData.standard)})`
   const summary =
     locale === 'en'
@@ -485,7 +485,7 @@ function buildStyles(palette: ThemePalette): string {
   `
 }
 
-export function renderChart(options: RenderChartOptions): string {
+export async function renderChart(options: RenderChartOptions): Promise<string> {
   const locale = options.locale ?? 'zh-CN'
   const theme = options.theme ?? 'light'
   const width = options.width ?? DEFAULT_WIDTH
@@ -497,7 +497,7 @@ export function renderChart(options: RenderChartOptions): string {
   const plotWidth = Math.max(width - margins.left - margins.right, 120)
   const plotHeight = Math.max(height - margins.top - margins.bottom, 120)
 
-  const baseLookup = lookup({
+  const baseLookup = await lookup({
     standard: options.standard,
     indicator: options.indicator,
     sex: options.sex,
@@ -509,7 +509,7 @@ export function renderChart(options: RenderChartOptions): string {
   const curveData =
     xRange[0] === datasetRange[0] && xRange[1] === datasetRange[1]
       ? baseLookup
-      : lookup({
+      : await lookup({
           standard: options.standard,
           indicator: options.indicator,
           sex: options.sex,
@@ -522,7 +522,7 @@ export function renderChart(options: RenderChartOptions): string {
     curveData,
     normalizedMeasurements.map((entry) => entry.measurement)
   )
-  const labels = buildLabels(curveData, locale, normalizedMeasurements.length)
+  const labels = await buildLabels(curveData, locale, normalizedMeasurements.length)
   const xTicks = createTicks(xRange[0], xRange[1])
   const yTicks = createTicks(yRange[0], yRange[1])
   const xPrecision = tickPrecision(xTicks)

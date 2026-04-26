@@ -1,5 +1,5 @@
-import { assess, interpret, DISCLAIMER, type Indicator } from '@groowooth/core'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { Indicator } from '@groowooth/core'
 
 import { deleteMeasurement, resetAllData } from '../lib/storage'
 import type { ChildRecord, MeasurementRecord } from '../lib/storage'
@@ -18,7 +18,14 @@ interface DashboardProps {
 
 type AgeIndicator = 'height-for-age' | 'weight-for-age' | 'bmi-for-age' | 'head-for-age'
 
+interface LatestSummary {
+  date: string
+  messages: string[]
+  disclaimer: string
+}
+
 const STANDARD = 'nhc-2022'
+const DEFAULT_DISCLAIMER = '本结果仅为统计参考，不构成医疗建议；如有疑虑请咨询儿科医生。'
 const SUMMARY_INDICATORS: AgeIndicator[] = [
   'height-for-age',
   'weight-for-age',
@@ -73,15 +80,20 @@ function isSummaryIndicator(indicator: Indicator): indicator is AgeIndicator {
   return SUMMARY_INDICATORS.includes(indicator as AgeIndicator)
 }
 
-function buildLatestSummary(child: ChildRecord, measurements: MeasurementRecord[]) {
+async function buildLatestSummary(child: ChildRecord, measurements: MeasurementRecord[]): Promise<LatestSummary | null> {
   const latest = [...measurements].sort((left, right) => right.date.localeCompare(left.date))[0]
 
   if (!latest) {
     return null
   }
 
+  let disclaimer = DEFAULT_DISCLAIMER
+
   try {
-    const assessment = assess({
+    const { DISCLAIMER, assess, interpret } = await import('@groowooth/core')
+    disclaimer = DISCLAIMER
+
+    const assessment = await assess({
       standard: STANDARD,
       ageMonths: latest.ageMonths,
       sex: child.sex,
@@ -90,17 +102,21 @@ function buildLatestSummary(child: ChildRecord, measurements: MeasurementRecord[
       headCircumferenceCm: latest.headCircumferenceCm
     })
 
-    const messages = assessment.assessments
-      .filter((entry) => isSummaryIndicator(entry.indicator))
-      .map((entry) =>
-        interpret({
-          standard: STANDARD,
-          zScore: entry.zScore,
-          indicator: entry.indicator,
-          ageMonths: latest.ageMonths,
-          sex: child.sex
-        }).description
-      )
+    const messages = await Promise.all(
+      assessment.assessments
+        .filter((entry) => isSummaryIndicator(entry.indicator))
+        .map(async (entry) =>
+          (
+            await interpret({
+              standard: STANDARD,
+              zScore: entry.zScore,
+              indicator: entry.indicator,
+              ageMonths: latest.ageMonths,
+              sex: child.sex
+            })
+          ).description
+        )
+    )
 
     return {
       date: latest.date,
@@ -111,13 +127,45 @@ function buildLatestSummary(child: ChildRecord, measurements: MeasurementRecord[
     return {
       date: latest.date,
       messages: ['本次记录已保存，但暂时无法生成统计解读。'],
-      disclaimer: DISCLAIMER
+      disclaimer
     }
   }
 }
 
 export function Dashboard({ child, measurements, onMeasurementsChanged }: DashboardProps) {
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [latestSummary, setLatestSummary] = useState<LatestSummary | null>(null)
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false)
+
+  useEffect(() => {
+    void import('@groowooth/core')
+      .then(({ loadStandard }) => loadStandard(STANDARD))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (measurements.length === 0) {
+      setLatestSummary(null)
+      setIsSummaryLoading(false)
+      return
+    }
+
+    let isCancelled = false
+
+    setLatestSummary(null)
+    setIsSummaryLoading(true)
+
+    void buildLatestSummary(child, measurements).then((summary) => {
+      if (!isCancelled) {
+        setLatestSummary(summary)
+        setIsSummaryLoading(false)
+      }
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [child, measurements])
 
   const chartCards = SUMMARY_INDICATORS.map((indicator) => ({
     indicator,
@@ -126,7 +174,6 @@ export function Dashboard({ child, measurements, onMeasurementsChanged }: Dashbo
   const nonEmptyCards = chartCards.filter((card) => card.measurements.length > 0)
   const visibleCards =
     nonEmptyCards.length > 0 ? nonEmptyCards : chartCards.filter((card) => card.indicator !== 'bmi-for-age')
-  const latestSummary = buildLatestSummary(child, measurements)
 
   async function handleSaved(_record: MeasurementRecord) {
     await onMeasurementsChanged()
@@ -148,7 +195,13 @@ export function Dashboard({ child, measurements, onMeasurementsChanged }: Dashbo
       <div className="dashboard">
         <ChildHeader child={child} />
 
-        {latestSummary ? (
+        {isSummaryLoading ? (
+          <section className="surface-card insight-card" aria-live="polite" aria-busy="true">
+            <p className="eyebrow">最近一次记录</p>
+            <h2>正在生成统计解读…</h2>
+            <p className="helper-text">记录已保存，正在按 NHC 2022 标准计算。</p>
+          </section>
+        ) : latestSummary ? (
           <section className="surface-card insight-card" aria-live="polite">
             <p className="eyebrow">最近一次记录</p>
             <h2>{formatDateLabel(latestSummary.date)}</h2>

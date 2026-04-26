@@ -106,9 +106,9 @@ export const tools: ToolDefinition[] = [
     description:
       '基于 WHO 或中国卫健委标准评估儿童生长发育，返回各 indicator 的 z-score、百分位、范围标签（统计语言，不含临床诊断）',
     inputSchema: assessGrowthInputSchema,
-    handler: (input: z.infer<typeof assessGrowthInputSchema>) => {
+    handler: async (input: z.infer<typeof assessGrowthInputSchema>) => {
       try {
-        const result = assess({
+        const result = await assess({
           ...input,
           standard: resolveAssessStandard(input.standard, input.ageMonths)
         })
@@ -123,11 +123,11 @@ export const tools: ToolDefinition[] = [
     name: 'get_growth_chart',
     description: '生成 SVG 成长曲线图（含百分位带和孩子数据点）',
     inputSchema: getGrowthChartInputSchema,
-    handler: (input: z.infer<typeof getGrowthChartInputSchema>) => {
+    handler: async (input: z.infer<typeof getGrowthChartInputSchema>) => {
       try {
         const standard = resolveChartStandard(input.standard, input.measurements)
         const indicator = toAgeBasedIndicator(input.indicator)
-        const svg = renderChart({
+        const svg = await renderChart({
           standard,
           indicator,
           sex: input.sex,
@@ -148,9 +148,9 @@ export const tools: ToolDefinition[] = [
     name: 'interpret_growth',
     description: '把 z-score 翻译成家长友好的中文统计描述（不含行动建议或临床诊断）',
     inputSchema: interpretGrowthInputSchema,
-    handler: (input: z.infer<typeof interpretGrowthInputSchema>) => {
+    handler: async (input: z.infer<typeof interpretGrowthInputSchema>) => {
       try {
-        const result = interpret({
+        const result = await interpret({
           ...input,
           standard: resolveAssessStandard(input.standard, input.ageMonths)
         })

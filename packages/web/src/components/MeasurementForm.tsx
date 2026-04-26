@@ -97,7 +97,7 @@ export function MeasurementForm({ child, onCancel, onSaved }: MeasurementFormPro
           </button>
         </div>
 
-        <form className="stack-form" onSubmit={handleSubmit}>
+        <form className="stack-form" onSubmit={handleSubmit} aria-busy={isSaving}>
           <div className="field">
             <label htmlFor="measurement-date">测量日期</label>
             <input
@@ -164,7 +164,7 @@ export function MeasurementForm({ child, onCancel, onSaved }: MeasurementFormPro
               稍后再记
             </button>
             <button className="primary-button" type="submit" disabled={isSaving}>
-              {isSaving ? '保存中…' : '保存并看曲线'}
+              {isSaving ? '保存并生成中…' : '保存并看曲线'}
             </button>
           </div>
         </form>

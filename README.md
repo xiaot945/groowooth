@@ -3,7 +3,7 @@
 > 开源儿童成长曲线工具——支持 WHO + 中国卫健委标准，自带 AI agent 接入。
 > Open-source child growth curve toolkit — WHO + China NHC standards, with native AI agent (MCP) integration.
 
-[![tests](https://img.shields.io/badge/tests-31%20passing-brightgreen)]() [![license](https://img.shields.io/badge/license-MIT-blue)]() [![status](https://img.shields.io/badge/status-v0.0.1-orange)]()
+[![tests](https://img.shields.io/badge/tests-34%20passing-brightgreen)]() [![license](https://img.shields.io/badge/license-MIT-blue)]() [![status](https://img.shields.io/badge/status-v0.1.0-orange)]()
 
 ## 是什么
 
@@ -71,11 +71,15 @@ pnpm --filter @groowooth/mcp build
 
 ## 核心 API
 
+所有标准数据都是按需懒加载的。自 `v0.1.0` 起，核心 API 全部为 async；如果页面首屏一定会用到某个标准，可在 mount 时先 `await loadStandard('nhc-2022')` 预热。
+
 ```ts
-import { assess, lookup, interpret, renderChart } from '@groowooth/core'
+import { assess, interpret, loadStandard, lookup, renderChart } from '@groowooth/core'
+
+await loadStandard('nhc-2022')
 
 // 评估
-const result = assess({
+const result = await assess({
   ageMonths: 24,
   sex: 'female',
   heightCm: 86,
@@ -85,7 +89,7 @@ const result = assess({
 // → { assessments: [...], standard, standardVersion, disclaimer }
 
 // 查曲线数据
-const curves = lookup({
+const curves = await lookup({
   standard: 'who-2006',
   indicator: 'height-for-age',
   sex: 'male',
@@ -94,7 +98,7 @@ const curves = lookup({
 })
 
 // 渲染 SVG
-const svg = renderChart({
+const svg = await renderChart({
   standard: 'nhc-2022',
   indicator: 'height-for-age',
   sex: 'female',
@@ -102,7 +106,12 @@ const svg = renderChart({
 })
 
 // 中文统计描述（无临床建议）
-const text = interpret({ zScore: 0.31, indicator: 'height-for-age', sex: 'female', ageMonths: 24 })
+const text = await interpret({
+  zScore: 0.31,
+  indicator: 'height-for-age',
+  sex: 'female',
+  ageMonths: 24,
+})
 ```
 
 ## 设计原则
