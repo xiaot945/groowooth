@@ -5,7 +5,9 @@
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "pnpm --filter @groowooth/core build --watch",
+    "dev:web": "pnpm --filter @groowooth/web dev",
     "build": "pnpm -r run build",
+    "build:web": "pnpm --filter @groowooth/web build",
     "build:standards": "pnpm exec tsx scripts/build-standards.ts",
     "test": "vitest run",
     "lint": "pnpm -r run lint",

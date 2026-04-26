@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@groowooth/core": ["../core/src/index.ts"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*", "src/vite-env.d.ts"],
+  "exclude": ["dist"]
+}

@@ -1,7 +1,18 @@
+import { fileURLToPath, URL } from 'node:url'
+
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@groowooth/core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url))
+    }
+  },
   test: {
-    include: ['packages/*/test/**/*.test.ts']
+    include: [
+      'packages/*/test/**/*.test.ts',
+      'packages/*/src/**/*.test.ts',
+      'packages/*/src/**/*.test.tsx'
+    ]
   }
 })
