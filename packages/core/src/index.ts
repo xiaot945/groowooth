@@ -1,4 +1,5 @@
 export * from './assess'
+export * from './chart-svg'
 export * from './errors'
 export * from './interpret'
 export * from './lookup'
