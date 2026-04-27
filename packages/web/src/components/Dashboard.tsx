@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Indicator } from '@groowooth/core'
+import { OutOfRangeError, type Indicator, type Standard } from '@groowooth/core'
 
 import {
   addMeasurement,
@@ -19,11 +19,14 @@ import { DataIOButtons } from './DataIOButtons'
 import { MeasurementList } from './MeasurementList'
 import { MeasurementForm } from './MeasurementForm'
 import { ResetButton } from './ResetButton'
+import { StandardSwitcher, standardLabel } from './StandardSwitcher'
 
 interface DashboardProps {
   activeChildId: string
   child: ChildRecord
   measurements: MeasurementRecord[]
+  selectedStandard: Standard
+  onSelectedStandardChange: (standard: Standard) => Promise<void>
   onMeasurementsChanged: () => Promise<void>
 }
 
@@ -35,7 +38,6 @@ interface LatestSummary {
   disclaimer: string
 }
 
-const STANDARD = 'nhc-2022'
 const DEFAULT_DISCLAIMER = '本结果仅为统计参考，不构成医疗建议；如有疑虑请咨询儿科医生。'
 const SUMMARY_INDICATORS: AgeIndicator[] = [
   'height-for-age',
@@ -91,7 +93,11 @@ function isSummaryIndicator(indicator: Indicator): indicator is AgeIndicator {
   return SUMMARY_INDICATORS.includes(indicator as AgeIndicator)
 }
 
-async function buildLatestSummary(child: ChildRecord, measurements: MeasurementRecord[]): Promise<LatestSummary | null> {
+async function buildLatestSummary(
+  child: ChildRecord,
+  measurements: MeasurementRecord[],
+  standard: Standard
+): Promise<LatestSummary | null> {
   const latest = [...measurements].sort((left, right) => right.date.localeCompare(left.date))[0]
 
   if (!latest) {
@@ -105,7 +111,7 @@ async function buildLatestSummary(child: ChildRecord, measurements: MeasurementR
     disclaimer = DISCLAIMER
 
     const assessment = await assess({
-      standard: STANDARD,
+      standard,
       ageMonths: latest.ageMonths,
       sex: child.sex,
       heightCm: latest.heightCm,
@@ -119,7 +125,7 @@ async function buildLatestSummary(child: ChildRecord, measurements: MeasurementR
         .map(async (entry) =>
           (
             await interpret({
-              standard: STANDARD,
+              standard,
               zScore: entry.zScore,
               indicator: entry.indicator,
               ageMonths: latest.ageMonths,
@@ -134,7 +140,15 @@ async function buildLatestSummary(child: ChildRecord, measurements: MeasurementR
       messages,
       disclaimer: assessment.disclaimer
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof OutOfRangeError) {
+      return {
+        date: latest.date,
+        messages: [`所选标准（${standardLabel(standard)}）不适用于当前年龄`],
+        disclaimer: DEFAULT_DISCLAIMER
+      }
+    }
+
     return {
       date: latest.date,
       messages: ['本次记录已保存，但暂时无法生成统计解读。'],
@@ -143,7 +157,14 @@ async function buildLatestSummary(child: ChildRecord, measurements: MeasurementR
   }
 }
 
-export function Dashboard({ activeChildId, child, measurements, onMeasurementsChanged }: DashboardProps) {
+export function Dashboard({
+  activeChildId,
+  child,
+  measurements,
+  selectedStandard,
+  onSelectedStandardChange,
+  onMeasurementsChanged
+}: DashboardProps) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMeasurement, setEditingMeasurement] = useState<MeasurementRecord | null>(null)
   const [measurementFormError, setMeasurementFormError] = useState<string | null>(null)
@@ -151,6 +172,7 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
   const [latestSummary, setLatestSummary] = useState<LatestSummary | null>(null)
   const [isSummaryLoading, setIsSummaryLoading] = useState(false)
   const closeEditTimeoutRef = useRef<number | null>(null)
+  const standard = selectedStandard
 
   function clearPendingEditClose() {
     if (closeEditTimeoutRef.current !== null) {
@@ -161,9 +183,9 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
 
   useEffect(() => {
     void import('@groowooth/core')
-      .then(({ loadStandard }) => loadStandard(STANDARD))
+      .then(({ loadStandard }) => loadStandard(selectedStandard))
       .catch(() => {})
-  }, [])
+  }, [selectedStandard])
 
   useEffect(() => () => clearPendingEditClose(), [])
 
@@ -179,7 +201,7 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
     setLatestSummary(null)
     setIsSummaryLoading(true)
 
-    void buildLatestSummary(child, measurements).then((summary) => {
+    void buildLatestSummary(child, measurements, standard).then((summary) => {
       if (!isCancelled) {
         setLatestSummary(summary)
         setIsSummaryLoading(false)
@@ -189,7 +211,7 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
     return () => {
       isCancelled = true
     }
-  }, [activeChildId, child, measurements])
+  }, [activeChildId, child, measurements, standard])
 
   useEffect(() => {
     clearPendingEditClose()
@@ -290,7 +312,7 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
           <section className="surface-card insight-card" aria-live="polite" aria-busy="true">
             <p className="eyebrow">最近一次记录</p>
             <h2>正在生成统计解读…</h2>
-            <p className="helper-text">记录已保存，正在按 NHC 2022 标准计算。</p>
+            <p className="helper-text">记录已保存，正在按 {standardLabel(standard)} 标准计算。</p>
           </section>
         ) : latestSummary ? (
           <section className="surface-card insight-card" aria-live="polite">
@@ -318,7 +340,7 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
               indicator={card.indicator}
               measurements={card.measurements}
               sex={child.sex}
-              standard={STANDARD}
+              standard={standard}
             />
           ))}
         </section>
@@ -331,6 +353,12 @@ export function Dashboard({ activeChildId, child, measurements, onMeasurementsCh
         />
 
         <div className="dashboard-actions">
+          <StandardSwitcher
+            value={selectedStandard}
+            onChange={(nextStandard) => {
+              void onSelectedStandardChange(nextStandard)
+            }}
+          />
           <DataIOButtons onImported={onMeasurementsChanged} />
           <ResetButton onConfirm={handleResetAllData} />
         </div>

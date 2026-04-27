@@ -1,13 +1,16 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 
-import type { Sex } from '@groowooth/core'
+import type { Sex, Standard } from '@groowooth/core'
 
 import { ageInMonths } from './age'
 
 const DB_NAME = 'groowooth'
 const DB_VERSION = 2
 const ACTIVE_CHILD_META_KEY = 'activeChildId'
+const SELECTED_STANDARD_META_KEY = 'selectedStandard'
 const STORAGE_BLOCKED_MESSAGE = '请关闭其他标签页或刷新页面。'
+const DEFAULT_SELECTED_STANDARD: Standard = 'nhc-2022'
+const VALID_STANDARDS: readonly Standard[] = ['who-2006', 'who-2007', 'nhc-2022']
 
 export class MeasurementConflictError extends Error {
   constructor(message = '目标日期已有测量记录') {
@@ -239,6 +242,10 @@ function assertMeasurementPayload(record: Partial<MeasurementRecord>): void {
   }
 }
 
+function isStandard(value: string): value is Standard {
+  return VALID_STANDARDS.includes(value as Standard)
+}
+
 export async function getActiveChild(): Promise<ChildRecord | null> {
   const db = await getDb()
   const metaRecord = await db.get('meta', ACTIVE_CHILD_META_KEY)
@@ -264,6 +271,21 @@ export async function getActiveChild(): Promise<ChildRecord | null> {
   }
 
   return fallbackChild
+}
+
+export async function getSelectedStandard(): Promise<Standard> {
+  const db = await getDb()
+  const metaRecord = await db.get('meta', SELECTED_STANDARD_META_KEY)
+
+  if (!metaRecord) {
+    return DEFAULT_SELECTED_STANDARD
+  }
+
+  if (isStandard(metaRecord.value)) {
+    return metaRecord.value
+  }
+
+  return DEFAULT_SELECTED_STANDARD
 }
 
 export async function listChildren(): Promise<ChildRecord[]> {
@@ -299,6 +321,15 @@ export async function setActiveChild(childId: string): Promise<void> {
   await db.put('meta', {
     key: ACTIVE_CHILD_META_KEY,
     value: childId
+  })
+}
+
+export async function setSelectedStandard(standard: Standard): Promise<void> {
+  const db = await getDb()
+
+  await db.put('meta', {
+    key: SELECTED_STANDARD_META_KEY,
+    value: standard
   })
 }
 

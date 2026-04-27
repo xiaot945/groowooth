@@ -535,6 +535,33 @@ h2 {
   padding-bottom: 1rem;
 }
 
+.standard-switcher {
+  display: grid;
+  gap: 0.45rem;
+  min-width: min(100%, 17rem);
+  padding: 0.85rem 1rem;
+}
+
+.standard-switcher__label {
+  font-weight: 600;
+}
+
+.standard-switcher__select {
+  min-width: min(100%, 17rem);
+  min-height: 44px;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: inherit;
+}
+
+.standard-switcher__select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--secondary) 60%, white 40%);
+  outline-offset: 2px;
+}
+
 .data-io {
   display: grid;
   justify-items: center;

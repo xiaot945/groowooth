@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 
-import type { Sex, Standard } from '@groowooth/core'
+import { OutOfRangeError, type Sex, type Standard } from '@groowooth/core'
+
+import { getStandardAgeRange } from '../lib/standard-bounds'
 
 type AgeIndicator = 'height-for-age' | 'weight-for-age' | 'bmi-for-age' | 'head-for-age'
 
@@ -15,6 +17,11 @@ interface ChartCardProps {
   measurements: ChartPoint[]
   sex: Sex
   standard: Standard
+}
+
+interface ChartNotice {
+  title: string
+  body: string
 }
 
 interface ChartRequest {
@@ -68,12 +75,30 @@ function useChartTheme(): 'light' | 'dark' {
   return theme
 }
 
-function toChartErrorMessage(error: unknown): string {
+function toChartErrorMessage(): string {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return '离线状态下首次打开无法加载标准曲线，请联网后重试'
   }
 
-  return error instanceof Error ? error.message : '图表加载失败，请稍后重试。'
+  return '图表加载失败，请稍后重试。'
+}
+
+function formatAgeMonths(ageMonths: number): string {
+  return Number.isInteger(ageMonths) ? String(ageMonths) : ageMonths.toFixed(1).replace(/\.0$/, '')
+}
+
+function buildUnsupportedAgeNotice(minAgeMonths: number, maxAgeMonths: number): ChartNotice {
+  return {
+    title: '该标准不适用于当前年龄',
+    body: `已记录的年龄超出该标准覆盖范围（${formatAgeMonths(minAgeMonths)}–${formatAgeMonths(maxAgeMonths)} 个月）`
+  }
+}
+
+function buildUnsupportedIndicatorNotice(): ChartNotice {
+  return {
+    title: '该标准不提供该指标的曲线',
+    body: '请切换其他参考标准查看该指标图表。'
+  }
 }
 
 export function ChartCard({ indicator, measurements, sex, standard }: ChartCardProps) {
@@ -90,21 +115,45 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
   const chartRequestKey = JSON.stringify(chartRequest)
   const [chartMarkup, setChartMarkup] = useState<string | null>(null)
   const [chartError, setChartError] = useState<string | null>(null)
+  const [chartNotice, setChartNotice] = useState<ChartNotice | null>(null)
   const [retryToken, setRetryToken] = useState(0)
 
   useEffect(() => {
     if (chartRequest.measurements.length === 0) {
       setChartMarkup(null)
       setChartError(null)
+      setChartNotice(null)
       return
     }
 
     let isCancelled = false
     setChartMarkup(null)
     setChartError(null)
+    setChartNotice(null)
 
     async function loadChart() {
       try {
+        const ageRange = await getStandardAgeRange(standard, indicator, sex)
+
+        if (!ageRange) {
+          if (!isCancelled) {
+            setChartNotice(buildUnsupportedIndicatorNotice())
+          }
+          return
+        }
+
+        if (
+          chartRequest.measurements.some(
+            (measurement) =>
+              measurement.x < ageRange.minAgeMonths || measurement.x > ageRange.maxAgeMonths
+          )
+        ) {
+          if (!isCancelled) {
+            setChartNotice(buildUnsupportedAgeNotice(ageRange.minAgeMonths, ageRange.maxAgeMonths))
+          }
+          return
+        }
+
         const { renderChart } = await import('@groowooth/core')
         const svg = await renderChart(chartRequest)
 
@@ -112,8 +161,24 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
           setChartMarkup(svg)
         }
       } catch (error) {
+        if (error instanceof OutOfRangeError) {
+          const ageRange = await getStandardAgeRange(standard, indicator, sex)
+
+          if (isCancelled) {
+            return
+          }
+
+          if (!ageRange) {
+            setChartNotice(buildUnsupportedIndicatorNotice())
+            return
+          }
+
+          setChartNotice(buildUnsupportedAgeNotice(ageRange.minAgeMonths, ageRange.maxAgeMonths))
+          return
+        }
+
         if (!isCancelled) {
-          setChartError(toChartErrorMessage(error))
+          setChartError(toChartErrorMessage())
         }
       }
     }
@@ -152,7 +217,7 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
       </div>
       <div
         className="chart-card__graphic"
-        aria-busy={chartMarkup === null && chartError === null}
+        aria-busy={chartMarkup === null && chartError === null && chartNotice === null}
       >
         {chartMarkup ? (
           <div dangerouslySetInnerHTML={{ __html: chartMarkup }} />
@@ -162,8 +227,9 @@ export function ChartCard({ indicator, measurements, sex, standard }: ChartCardP
             role={chartError ? 'alert' : 'status'}
             aria-live="polite"
           >
-            <div className="chart-card__skeleton" aria-hidden="true" />
-            <p className="muted-text">{chartError ?? '正在加载…'}</p>
+            {chartNotice ? null : <div className="chart-card__skeleton" aria-hidden="true" />}
+            {chartNotice ? <p>{chartNotice.title}</p> : null}
+            <p className="muted-text">{chartNotice?.body ?? chartError ?? '正在加载…'}</p>
             {chartError ? (
               <div className="chart-card__actions">
                 <button
