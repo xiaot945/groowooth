@@ -5,6 +5,8 @@
 
 [![CI](https://github.com/xiaot945/groowooth/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaot945/groowooth/actions/workflows/ci.yml) [![tests](https://img.shields.io/badge/tests-47%20passing-brightgreen)]() [![license](https://img.shields.io/badge/license-MIT-blue)]() [![status](https://img.shields.io/badge/status-v0.1.0-orange)]()
 
+🚀 **在线试用 / Try it now**：<https://groowooth.pages.dev>
+
 ## 是什么
 
 家长用浏览器记录孩子身高/体重/头围，按 **WHO 2006/2007** 或 **中国卫健委 WS/T 423-2022** 标准看百分位曲线。数据本地存（IndexedDB），零账号、零云、零广告。
@@ -156,7 +158,8 @@ const text = await interpret({
 - [x] PWA 离线可用
 - [x] CI/CD（GitHub Actions）
 - [x] Bundle size 优化：主包 25 kB，标准数据按需懒加载
-- [ ] Cloudflare Pages 部署 + 自定义域名
+- [x] Cloudflare Pages 部署：<https://groowooth.pages.dev>
+- [ ] 自定义域名
 - [ ] npm 发布 `@groowooth/core` + `@groowooth/mcp`
 
 **v1.1+**
