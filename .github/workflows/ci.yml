@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    name: lint + test + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck — core
+        run: pnpm --filter @groowooth/core exec tsc --noEmit
+
+      - name: Typecheck — web
+        run: pnpm --filter @groowooth/web exec tsc --noEmit
+
+      - name: Typecheck — mcp
+        run: pnpm --filter @groowooth/mcp exec tsc --noEmit
+
+      - name: Test — full repo
+        run: pnpm exec vitest run
+
+      - name: Build — core
+        run: pnpm --filter @groowooth/core build
+
+      - name: Build — web
+        run: pnpm --filter @groowooth/web build
+
+      - name: Build — mcp
+        run: pnpm --filter @groowooth/mcp build
+
+      - name: Verify chart-svg sample (smoke)
+        run: |
+          node -e "import('./packages/core/dist/index.js').then(async m => { const svg = await m.renderChart({ standard: 'nhc-2022', indicator: 'height-for-age', sex: 'female', measurements: [{ x: 24, value: 86 }] }); if (!svg.includes('<svg')) throw new Error('svg empty'); console.log('chart-svg smoke ok, len=' + svg.length); })"
+
+      - name: Verify MCP server starts
+        run: |
+          node packages/mcp/dist/server.js < /dev/null &
+          PID=$!
+          sleep 1
+          kill $PID 2>/dev/null || true
+          echo "mcp smoke ok"

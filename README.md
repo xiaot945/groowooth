@@ -3,7 +3,7 @@
 > 开源儿童成长曲线工具——支持 WHO + 中国卫健委标准，自带 AI agent 接入。
 > Open-source child growth curve toolkit — WHO + China NHC standards, with native AI agent (MCP) integration.
 
-[![tests](https://img.shields.io/badge/tests-34%20passing-brightgreen)]() [![license](https://img.shields.io/badge/license-MIT-blue)]() [![status](https://img.shields.io/badge/status-v0.1.0-orange)]()
+[![CI](https://github.com/xiaot945/groowooth/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaot945/groowooth/actions/workflows/ci.yml) [![tests](https://img.shields.io/badge/tests-47%20passing-brightgreen)]() [![license](https://img.shields.io/badge/license-MIT-blue)]() [![status](https://img.shields.io/badge/status-v0.1.0-orange)]()
 
 ## 是什么
 
