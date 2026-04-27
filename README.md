@@ -11,6 +11,19 @@
 
 同时提供 **MCP server**，让 Claude Desktop / Cursor / Cline 等 AI 客户端可以直接调用「评估生长」「画曲线」「解读 z-score」三个工具。
 
+## 截图
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/dashboard-desktop.png" alt="桌面端 Dashboard" width="640" /></td>
+    <td align="center"><img src="docs/screenshots/dashboard-mobile.png" alt="移动端 Dashboard" width="240" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>桌面：4 张曲线 + 最近一次记录的统计解读 + 标准切换</sub></td>
+    <td align="center"><sub>移动：单列布局，PWA 可安装</sub></td>
+  </tr>
+</table>
+
 ## 三层架构
 
 ```
@@ -138,11 +151,13 @@ const text = await interpret({
 - ✅ mcp: 3 个 tool，Claude Desktop 可接入
 
 **v1.0（下一站）**
-- [ ] 多孩子 UI、标准切换 UI、JSON 导入导出、设置抽屉
+- [x] 多孩子 UI、JSON 导入导出
+- [x] 标准切换 UI（NHC ⟷ WHO 2006 ⟷ WHO 2007）
 - [x] PWA 离线可用
+- [x] CI/CD（GitHub Actions）
+- [x] Bundle size 优化：主包 25 kB，标准数据按需懒加载
 - [ ] Cloudflare Pages 部署 + 自定义域名
-- [ ] Bundle size 优化（标准数据按需懒加载，目前 932 kB / 243 kB gzip）
-- [ ] CI/CD（GitHub Actions）
+- [ ] npm 发布 `@groowooth/core` + `@groowooth/mcp`
 
 **v1.1+**
 - [ ] 早产儿矫正 + Fenton 2013 标准
