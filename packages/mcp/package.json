@@ -1,6 +1,28 @@
 {
   "name": "@groowooth/mcp",
   "version": "0.1.0",
+  "description": "MCP server for groowooth — exposes assess_growth / get_growth_chart / interpret_growth tools to Claude Desktop, Cursor, Cline and other MCP clients.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "child-growth",
+    "growth-chart",
+    "claude",
+    "ai-agent",
+    "who-standards",
+    "china-nhc"
+  ],
+  "homepage": "https://github.com/xiaot945/groowooth#readme",
+  "bugs": {
+    "url": "https://github.com/xiaot945/groowooth/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaot945/groowooth.git",
+    "directory": "packages/mcp"
+  },
+  "license": "MIT",
+  "author": "yuxuan <xiaot945@users.noreply.github.com>",
   "type": "module",
   "main": "./dist/server.js",
   "bin": {
@@ -9,8 +31,12 @@
   "files": [
     "dist",
     "bin",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "start": "node bin/groowooth-mcp.js",

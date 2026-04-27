@@ -1,6 +1,29 @@
 {
   "name": "@groowooth/core",
   "version": "0.1.0",
+  "description": "Open-source child growth curve toolkit — WHO 2006/2007 + China NHC WS/T 423-2022 standards, LMS Box-Cox + SD-table assess/lookup/interpret/chart.",
+  "keywords": [
+    "child-growth",
+    "growth-chart",
+    "who-standards",
+    "china-nhc",
+    "lms",
+    "z-score",
+    "percentile",
+    "pediatrics",
+    "anthropometry"
+  ],
+  "homepage": "https://github.com/xiaot945/groowooth#readme",
+  "bugs": {
+    "url": "https://github.com/xiaot945/groowooth/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaot945/groowooth.git",
+    "directory": "packages/core"
+  },
+  "license": "MIT",
+  "author": "yuxuan <xiaot945@users.noreply.github.com>",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,6 +32,14 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
